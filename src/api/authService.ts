@@ -32,48 +32,41 @@ export interface RegisterData {
 }
 
 export const loginToNodeBackend = async (data: LoginCredentials): Promise<LoginResponse> => {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            if (data.email === "admin@empresa.com" && data.password === "123456") {
-                resolve({
-                    existe: true,
-                    usuario: {
-                        id: "usr_001",
-                        email: data.email,
-                        rol: "Súper Administrador", 
-                        accesos: ["dashboard", "flujos", "campañas"],
-                        tenantId: "tenant_001"
-                    },
-                    token: "fake-jwt-node-token"
-                });
-            } else {
-                reject({
-                    existe: false,
-                    mensaje: "El correo o contraseña está mal, verificar los datos ingresados"
-                });
-            }
-        }, 1000); 
+    // 1. Tocamos la puerta del backend real
+    const response = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
     });
+
+    const dataReal = await response.json();
+
+    // 2. Si el backend nos mandó un error (ej. status 401)
+    if (!response.ok) {
+        // Lanzamos el error con el formato que nuestro LoginForm espera
+        throw { existe: false, mensaje: dataReal.error };
+    }
+
+    // 3. Si fue exitoso, devolvemos los datos al LoginForm
+    return dataReal;
 };
 
 export const registerInNodeBackend = async (data: RegisterData): Promise<LoginResponse> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            // Simulamos que Node creó el Tenant en PostgreSQL y nos devuelve los datos
-            // Generamos un tenantId falso basado en el nombre de la empresa
-            const newTenantId = data.companyName.toLowerCase().replace(/\s+/g, '_') + "_001";
-            
-            resolve({
-                existe: true,
-                usuario: {
-                    id: "usr_999",
-                    email: data.email,
-                    rol: "Súper Administrador", // El que registra la empresa es el dueño/admin [cite: 31]
-                    accesos: ["dashboard", "flujos", "campañas", "configuracion"],
-                    tenantId: newTenantId
-                },
-                token: "fake-jwt-register-token" // Token de Meta/Sistema simulado [cite: 28, 46]
-            });
-        }, 1000); 
+    // ¡Hacemos una petición HTTP real a nuestro backend de Node en el puerto 3000!
+    const response = await fetch('http://localhost:3000/api/auth/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
     });
+
+    if (!response.ok) {
+        throw new Error("Error en el servidor");
+    }
+
+    const dataReal = await response.json();
+    return dataReal;
 };

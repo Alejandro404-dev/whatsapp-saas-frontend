@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-// Importamos la función y el tipo de error que acabamos de crear
 import { loginToNodeBackend, type LoginError } from '../../../../api/authService';
+import { useAuthStore } from '../../store/useAuthStore';
 import './LoginForm.css';
 
 const loginSchema = z.object({
@@ -17,6 +17,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export const LoginForm = () => {
     const [authError, setAuthError] = useState<string | null>(null);
     const navigate = useNavigate();
+    
+    const login = useAuthStore((state) => state.login);
 
     const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
@@ -25,23 +27,29 @@ export const LoginForm = () => {
     const onSubmit = async (data: LoginFormValues) => {
         setAuthError(null);
         try {
-            // TypeScript ahora sabe automáticamente que "respuesta" es de tipo LoginResponse
+            // 1. Tocamos la puerta de Node y PostgreSQL
             const respuesta = await loginToNodeBackend(data);
             
-            console.log("Respuesta del Backend:", respuesta);
-            alert(`¡Bienvenido! Rol: ${respuesta.usuario.rol}`);
+            // 2. ¡EL PASO CRÍTICO QUE FALTABA! Adaptamos los datos para Zustand
+            const usuarioAdaptado = {
+                id: respuesta.usuario.id,
+                email: respuesta.usuario.email,
+                tenantId: respuesta.usuario.tenantId,
+                role: respuesta.usuario.rol // Traducimos 'rol' a 'role' para que TypeScript no se queje
+            };
+
+            // 3. Le damos el "Pase VIP" a nuestra memoria global
+            login(usuarioAdaptado, respuesta.token);
             
+            // 4. Ahora sí, mostramos la alerta y entramos al Dashboard
+            alert(`¡Bienvenido! Rol: ${respuesta.usuario.rol}`);
             navigate('/dashboard');
 
         } catch (err: unknown) {
-            // Le decimos a TypeScript: "Confía en mí, este error tiene la forma de LoginError"
             const errorBackend = err as LoginError;
-            
-            // Usamos el mensaje que viene del backend, o un texto por defecto por seguridad
             setAuthError(errorBackend.mensaje || "Error de conexión con el servidor");
         }
     };
-
     return (
         <div className="login-container">
             <form onSubmit={handleSubmit(onSubmit)}>
