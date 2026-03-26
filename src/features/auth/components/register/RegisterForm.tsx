@@ -39,7 +39,6 @@ export const RegisterForm = () => {
                 password: data.password
             });
 
-            // ¡EL ARREGLO ESTÁ AQUÍ! 
             // Adaptamos lo que manda Node a lo que espera Zustand
             const usuarioAdaptado = {
                 id: respuesta.usuario.id, 

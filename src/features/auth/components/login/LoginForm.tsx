@@ -30,7 +30,6 @@ export const LoginForm = () => {
             // 1. Tocamos la puerta de Node y PostgreSQL
             const respuesta = await loginToNodeBackend(data);
             
-            // 2. ¡EL PASO CRÍTICO QUE FALTABA! Adaptamos los datos para Zustand
             const usuarioAdaptado = {
                 id: respuesta.usuario.id,
                 email: respuesta.usuario.email,
