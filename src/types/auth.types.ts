@@ -1,0 +1,28 @@
+export interface LoginCredentials {
+    email: string;
+    password: string;
+}
+
+export interface LoginResponse {
+    existe: boolean;
+    usuario: {
+        id: string;
+        email: string;
+        rol: string;
+        accesos?: string[];
+        tenantId: string;
+        nombreEmpresa: string;
+    };
+    token: string;
+}
+
+export interface LoginError {
+    existe: boolean;
+    mensaje: string;
+}
+
+export interface RegisterData {
+    companyName: string;
+    email: string;
+    password: string;
+}

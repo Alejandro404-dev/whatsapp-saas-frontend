@@ -44,7 +44,8 @@ export const RegisterForm = () => {
                 id: respuesta.usuario.id, 
                 email: respuesta.usuario.email,
                 tenantId: respuesta.usuario.tenantId,
-                role: respuesta.usuario.rol   // Traducimos 'rol' a 'role'
+                role: respuesta.usuario.rol,   // Traducimos 'rol' a 'role'
+                nombreEmpresa: respuesta.usuario.nombreEmpresa,
             };
 
             // Pasamos el usuario adaptado

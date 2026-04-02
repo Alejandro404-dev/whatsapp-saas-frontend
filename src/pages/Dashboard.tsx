@@ -20,10 +20,12 @@ const DashboardLayout = () => {
             {/* Sidebar (Menú Lateral Fijo) */}
             <div className="w-64 bg-slate-900 text-white flex flex-col">
                 <div className="p-6 border-b border-slate-800">
-                    <h2 className="text-2xl font-bold text-blue-400">WhatsApp SaaS</h2>
-                    <p className="text-xs text-slate-400 mt-1">Tenant: {user?.tenantId || 'N/A'}</p>
+                    <h2 className="text-xl font-bold text-blue-400 uppercase tracking-wider">
+                        {user?.nombreEmpresa || 'Mi Negocio'}
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">Plataforma SaaS</p>
                 </div>
-                
+
                 <nav className="flex-1 p-4">
                     <ul className="space-y-2">
                         {/* BOTÓN 1: Inicio del Dashboard */}
@@ -33,7 +35,7 @@ const DashboardLayout = () => {
                                 Panel Principal
                             </Link>
                         </li>
-                        
+
                         {/* BOTÓN 2: ¡NUESTRO NUEVO ACCESO A USUARIOS! */}
                         <li>
                             <Link to="/dashboard/users" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/users')}`}>
@@ -77,7 +79,7 @@ const DashboardLayout = () => {
 
                 {/* ÁREA DINÁMICA: Aquí se inyectan las demás pantallas automáticamente */}
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
-                    <Outlet /> 
+                    <Outlet />
                 </main>
             </div>
         </div>

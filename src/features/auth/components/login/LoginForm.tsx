@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { loginToNodeBackend, type LoginError } from '../../../../api/authService';
+import { loginToNodeBackend } from '../../../../api/authService';
+import type { LoginError } from '../../../../types/auth.types';
 import { useAuthStore } from '../../store/useAuthStore';
 import './LoginForm.css';
 
@@ -34,7 +35,8 @@ export const LoginForm = () => {
                 id: respuesta.usuario.id,
                 email: respuesta.usuario.email,
                 tenantId: respuesta.usuario.tenantId,
-                role: respuesta.usuario.rol // Traducimos 'rol' a 'role' para que TypeScript no se queje
+                role: respuesta.usuario.rol, // Traducimos 'rol' a 'role' para que TypeScript no se queje
+                nombreEmpresa: respuesta.usuario.nombreEmpresa,
             };
 
             // 3. Le damos el "Pase VIP" a nuestra memoria global

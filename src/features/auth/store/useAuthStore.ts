@@ -8,6 +8,7 @@ interface User {
     email: string;
     tenantId: string; // Cruacial para saber a que empresa pertenece
     role: string
+    nombreEmpresa: string;
 }
 
 interface AuthState {
