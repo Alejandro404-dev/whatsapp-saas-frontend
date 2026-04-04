@@ -1,89 +1,80 @@
 import { useAuthStore } from '../features/auth/store/useAuthStore';
-import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Users, LayoutDashboard, MessageSquare, Network } from 'lucide-react';
+import { MessageSquare, TrendingUp, Users, Smartphone, Activity, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const DashboardLayout = () => {
-    const { user, logout } = useAuthStore();
-    const navigate = useNavigate();
-    const location = useLocation(); // Para saber en qué ruta estamos y pintar el botón activo
+const Dashboard = () => {
+    const { user } = useAuthStore();
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-
-    // Función para pintar el botón del menú activo
-    const isActive = (path: string) => location.pathname === path ? "bg-slate-800 text-blue-400" : "hover:bg-slate-800 transition-colors text-white";
+    const stats = [
+        { title: "Mensajes Enviados", value: "14,592", trend: "+12.5%", trendUp: true, icon: <MessageSquare size={24} className="text-blue-600" />, bgColor: "bg-blue-50" },
+        { title: "Campañas Activas", value: "3", trend: "En ejecución", trendUp: true, icon: <TrendingUp size={24} className="text-green-600" />, bgColor: "bg-green-50" },
+        { title: "Operadores", value: "8", trend: "2 en línea", trendUp: true, icon: <Users size={24} className="text-purple-600" />, bgColor: "bg-purple-50" },
+        { title: "Números Conectados", value: "1", trend: "Estado: Activo", trendUp: true, icon: <Smartphone size={24} className="text-orange-600" />, bgColor: "bg-orange-50" }
+    ];
 
     return (
-        <div className="flex h-screen bg-gray-100">
-            {/* Sidebar (Menú Lateral Fijo) */}
-            <div className="w-64 bg-slate-900 text-white flex flex-col">
-                <div className="p-6 border-b border-slate-800">
-                    <h2 className="text-xl font-bold text-blue-400 uppercase tracking-wider">
-                        {user?.nombreEmpresa || 'Mi Negocio'}
-                    </h2>
-                    <p className="text-xs text-slate-400 mt-1">Plataforma SaaS</p>
-                </div>
-
-                <nav className="flex-1 p-4">
-                    <ul className="space-y-2">
-                        {/* BOTÓN 1: Inicio del Dashboard */}
-                        <li>
-                            <Link to="/dashboard" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard')}`}>
-                                <LayoutDashboard size={20} />
-                                Panel Principal
-                            </Link>
-                        </li>
-
-                        {/* BOTÓN 2: ¡NUESTRO NUEVO ACCESO A USUARIOS! */}
-                        <li>
-                            <Link to="/dashboard/users" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/users')}`}>
-                                <Users size={20} />
-                                Gestión Usuarios
-                            </Link>
-                        </li>
-
-                        {/* Opciones futuras */}
-                        <li>
-                            <div className="p-3 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors flex items-center gap-3 text-gray-400">
-                                <Network size={20} />
-                                Flujos (Próximamente)
-                            </div>
-                        </li>
-                        <li>
-                            <div className="p-3 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors flex items-center gap-3 text-gray-400">
-                                <MessageSquare size={20} />
-                                Campañas (Próximamente)
-                            </div>
-                        </li>
-                    </ul>
-                </nav>
+        <div className="p-8">
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-gray-800">
+                    Hola, {user?.email?.split('@')[0] || 'Usuario'} 👋
+                </h1>
+                <p className="text-gray-500 mt-2">
+                    Aquí tienes un resumen de la actividad de tu plataforma en los últimos 30 días.
+                </p>
             </div>
 
-            {/* Contenedor Principal */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Header Fijo */}
-                <header className="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10">
-                    <h1 className="text-xl font-semibold text-gray-800">Administración</h1>
-                    <div className="flex items-center gap-4">
-                        <div className="text-right">
-                            <p className="text-sm font-medium text-gray-700">{user?.email}</p>
-                            <p className="text-xs text-blue-600 font-semibold">{user?.role}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {stats.map((stat, index) => (
+                    <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className={`p-3 rounded-lg ${stat.bgColor}`}>{stat.icon}</div>
+                            <span className={`text-sm font-medium ${stat.trendUp ? 'text-green-600' : 'text-red-600'}`}>{stat.trend}</span>
                         </div>
-                        <button onClick={handleLogout} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-md text-sm font-medium transition-colors">
-                            Cerrar Sesión
-                        </button>
+                        <div>
+                            <h3 className="text-gray-500 text-sm font-medium">{stat.title}</h3>
+                            <p className="text-2xl font-bold text-gray-800 mt-1">{stat.value}</p>
+                        </div>
                     </div>
-                </header>
+                ))}
+            </div>
 
-                {/* ÁREA DINÁMICA: Aquí se inyectan las demás pantallas automáticamente */}
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
-                    <Outlet />
-                </main>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-lg font-bold text-gray-800 mb-6">Acciones Rápidas</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Link to="/campanas" className="group flex items-center p-4 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all">
+                            <div className="bg-blue-100 p-2 rounded-lg text-blue-600 mr-4"><MessageSquare size={20} /></div>
+                            <div className="flex-1">
+                                <h4 className="font-semibold text-gray-800 group-hover:text-blue-700">Nueva Campaña</h4>
+                                <p className="text-xs text-gray-500">Envía mensajes masivos</p>
+                            </div>
+                            <ArrowRight size={16} className="text-gray-400 group-hover:text-blue-600" />
+                        </Link>
+                        {user?.role?.toUpperCase() === 'ADMINISTRADOR' && (
+                            <Link to="/dashboard/users" className="group flex items-center p-4 border border-gray-100 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all">
+                                <div className="bg-purple-100 p-2 rounded-lg text-purple-600 mr-4"><Users size={20} /></div>
+                                <div className="flex-1">
+                                    <h4 className="font-semibold text-gray-800 group-hover:text-purple-700">Gestión de Equipo</h4>
+                                    <p className="text-xs text-gray-500">Administra accesos</p>
+                                </div>
+                                <ArrowRight size={16} className="text-gray-400 group-hover:text-purple-600" />
+                            </Link>
+                        )}
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-lg font-bold text-gray-800 mb-6">Estado del Sistema</h2>
+                    <div className="space-y-6">
+                        <div className="flex items-center">
+                            <div className="relative"><Activity size={20} className="text-green-500 mr-3" /><span className="absolute top-0 right-3 w-2 h-2 bg-green-500 rounded-full animate-ping"></span></div>
+                            <div><p className="text-sm font-semibold text-gray-800">Conexión API Meta</p><p className="text-xs text-gray-500">En línea y funcionando</p></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
 
-export default DashboardLayout;
+export default Dashboard;

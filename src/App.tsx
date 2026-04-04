@@ -1,39 +1,38 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
+import Dashboard from './pages/Dashboard'; // Tu nueva foto de KPIs
+import DashboardLayout from './layouts/DashboardLayout'; // El marco de fotos (Sidebar + Header)
 import { ProtectedRoute } from './features/auth/components/ProtectedRoute';
 import UserManagement from './pages/UserManagement';
+import Campanas from './pages/campanas';
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Ruta para el Login */}
+        {/* Rutas Públicas */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Redirección por defecto si no estás logueado */}
+        {/* Redirección por defecto al login si entras a la raíz */}
         <Route path="/" element={<Navigate to="/login" />} />
 
-        {/* Rutas Privadas (Envueltas por el Layout) */}
+        {/* Rutas Privadas (Envueltas por el Layout Mágico) */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
-            <Dashboard /> {/* Fíjate que ahora usamos el molde */}
+            <DashboardLayout /> {/* <-- EL MARCO: Aquí está el menú lateral, arriba el Header, y en el centro el <Outlet /> */}
           </ProtectedRoute>
         }>
-            {/* Pantalla por defecto al entrar a /dashboard */}
-            <Route index element={
-                <div className="p-8">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h3 className="text-lg font-bold text-gray-800 mb-2">Bienvenido a tu espacio de trabajo</h3>
-                        <p className="text-gray-500">Selecciona una opción del menú lateral para comenzar.</p>
-                    </div>
-                </div>
-            } />
-            
-            {/* Nuestra nueva pantalla de usuarios: /dashboard/users */}
-            <Route path="users" element={<UserManagement />} />
+          {/* LA FOTO POR DEFECTO: Lo que se pinta en el <Outlet /> al entrar a /dashboard */}
+          <Route index element={<Dashboard />} />
+
+          {/* LA OTRA FOTO: Lo que se pinta en el <Outlet /> al entrar a /dashboard/users */}
+          <Route path="users" element={<UserManagement />} />
+
+          {/* Ruta para la página de Campañas */}
+          <Route path="campanas" element={<Campanas />} />
+
         </Route>
 
       </Routes>
