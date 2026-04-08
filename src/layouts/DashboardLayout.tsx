@@ -1,6 +1,6 @@
 import { useAuthStore } from '../features/auth/store/useAuthStore';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Users, LayoutDashboard, MessageSquare, Network } from 'lucide-react';
+import { Users, LayoutDashboard, MessageSquare, Smartphone } from 'lucide-react';
 
 const DashboardLayout = () => {
     const { user, logout } = useAuthStore();
@@ -45,10 +45,10 @@ const DashboardLayout = () => {
                         )}
 
                         <li>
-                            <div className="p-3 hover:bg-slate-800 rounded-lg cursor-not-allowed transition-colors flex items-center gap-3 text-gray-500">
-                                <Network size={20} />
-                                Flujos (Próximamente)
-                            </div>
+                            <Link to="/dashboard/configuracion" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/configuracion')}`}>
+                                <Smartphone size={20} />
+                                Canal WhatsApp
+                            </Link>
                         </li>
                         <li>
                             <Link to="/dashboard/campanas" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/campanas')}`}>

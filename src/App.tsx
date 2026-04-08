@@ -5,7 +5,8 @@ import Dashboard from './pages/Dashboard'; // Tu nueva foto de KPIs
 import DashboardLayout from './layouts/DashboardLayout'; // El marco de fotos (Sidebar + Header)
 import { ProtectedRoute } from './features/auth/components/ProtectedRoute';
 import UserManagement from './pages/UserManagement';
-import Campanas from './pages/campanas';
+import Campanas from './pages/Campanas';
+import Configuracion from './pages/Configuracion';
 
 function App() {
   return (
@@ -32,6 +33,11 @@ function App() {
 
           {/* Ruta para la página de Campañas */}
           <Route path="campanas" element={<Campanas />} />
+
+          {/* Ruta para la pagina de configuracion */}
+          <Route path="configuracion" element={<Configuracion />} />
+
+
 
         </Route>
 

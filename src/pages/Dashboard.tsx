@@ -42,7 +42,11 @@ const Dashboard = () => {
                 <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h2 className="text-lg font-bold text-gray-800 mb-6">Acciones Rápidas</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Link to="/campanas" className="group flex items-center p-4 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all">
+                        <Link
+                            to="/dashboard/campanas"
+                            state={{ abrirModal: true }}
+                            className="group flex items-center p-4 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+                        >
                             <div className="bg-blue-100 p-2 rounded-lg text-blue-600 mr-4"><MessageSquare size={20} /></div>
                             <div className="flex-1">
                                 <h4 className="font-semibold text-gray-800 group-hover:text-blue-700">Nueva Campaña</h4>

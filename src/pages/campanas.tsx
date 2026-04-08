@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom'; // <-- 1. Agregamos useNavigate
 import { Plus, MessageSquare, CheckCircle, Clock, X, Upload } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-//  1. Nuestras reglas estrictas para una nueva campaña
 const campanaSchema = z.object({
     nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
     mensaje: z.string().min(10, "El mensaje debe tener al menos 10 caracteres"),
@@ -13,39 +13,47 @@ const campanaSchema = z.object({
 type CampanaValues = z.infer<typeof campanaSchema>;
 
 const Campanas = () => {
-    //  2. Convertimos las campañas en Estado para poder agregar nuevas a la tabla
+    // 2. Inicializamos los radares de React Router
+    const location = useLocation();
+    const navigate = useNavigate();
+
     const [campanas, setCampanas] = useState([
         { id: 1, nombre: "Promo Verano 2026", estado: "Completada", enviados: 1250, fecha: "02 Abr 2026" },
         { id: 2, nombre: "Recordatorio de Pago", estado: "Activa", enviados: 340, fecha: "04 Abr 2026" },
         { id: 3, nombre: "Lanzamiento Producto X", estado: "Borrador", enviados: 0, fecha: "--" },
     ]);
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    // 3.Leemos el mensaje secreto directamente aquí
+    const [isModalOpen, setIsModalOpen] = useState(location.state?.abrirModal || false);
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<CampanaValues>({
         resolver: zodResolver(campanaSchema)
     });
 
-    //  3. Función que se ejecuta al darle "Crear Campaña"
     const onSubmit = (data: CampanaValues) => {
-        // Simulamos la creación de la campaña
         const nuevaCampana = {
             id: campanas.length + 1,
             nombre: data.nombre,
-            estado: "Activa", // La ponemos como activa por defecto
+            estado: "Activa",
             enviados: 0,
             fecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
         };
 
-        // La agregamos al principio de nuestra tabla
         setCampanas([nuevaCampana, ...campanas]);
         cerrarModal();
     };
 
     const cerrarModal = () => {
         setIsModalOpen(false);
-        reset(); // Limpiamos el formulario
+        reset(); 
     };
+
+    //  4. Limpiamos la ruta silenciosamente para que al dar F5 no se vuelva a abrir el modal
+    useEffect(() => {
+        if (location.state?.abrirModal) {
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location, navigate]);
 
     return (
         <div className="p-8 relative">
