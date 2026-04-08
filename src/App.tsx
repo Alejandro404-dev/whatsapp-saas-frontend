@@ -7,10 +7,13 @@ import { ProtectedRoute } from './features/auth/components/ProtectedRoute';
 import UserManagement from './pages/UserManagement';
 import Campanas from './pages/Campanas';
 import Configuracion from './pages/Configuracion';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <Router>
+      <Toaster position="top-right" reverseOrder={false} />
+      
       <Routes>
         {/* Rutas Públicas */}
         <Route path="/login" element={<Login />} />

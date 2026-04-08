@@ -1,8 +1,19 @@
 import { useState } from 'react';
 import { Smartphone, ShieldCheck, Key, Info, CheckCircle2, AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const Configuracion = () => {
     const [estaConectado, setEstaConectado] = useState(false);
+
+    const handleConectar = () => {
+        // Simulamos que el sistema está validando el Token con Meta
+        toast.loading('Verificando credenciales con Meta...', { duration: 1500 });
+
+        setTimeout(() => {
+            setEstaConectado(true);
+            toast.success('¡Conexión exitosa con Meta Cloud API!');
+        }, 1500);
+    };
 
     return (
         <div className="p-8 max-w-4xl mx-auto">
@@ -12,7 +23,7 @@ const Configuracion = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-6">
-                
+
                 {/* ESTADO DE LA CONEXIÓN */}
                 <div className={`p-6 rounded-xl border-2 flex items-center justify-between transition-all ${estaConectado ? 'border-green-100 bg-green-50' : 'border-gray-100 bg-white'}`}>
                     <div className="flex items-center gap-4">
@@ -39,8 +50,8 @@ const Configuracion = () => {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">ID del Identificador de Teléfono</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 placeholder="Ej: 109283746509182"
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
                             />
@@ -48,8 +59,8 @@ const Configuracion = () => {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Token de Acceso Permanente</label>
-                            <input 
-                                type="password" 
+                            <input
+                                type="password"
                                 placeholder="EAAlxP..."
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
                             />
@@ -63,8 +74,8 @@ const Configuracion = () => {
                         </div>
 
                         <div className="pt-4">
-                            <button 
-                                onClick={() => setEstaConectado(true)}
+                            <button
+                                onClick={handleConectar}
                                 className="w-full bg-slate-900 hover:bg-black text-white py-3 rounded-lg font-bold transition-all flex justify-center items-center gap-2 shadow-lg"
                             >
                                 <ShieldCheck size={20} />
