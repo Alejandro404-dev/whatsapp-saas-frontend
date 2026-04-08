@@ -1,13 +1,15 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard'; // Tu nueva foto de KPIs
-import DashboardLayout from './layouts/DashboardLayout'; // El marco de fotos (Sidebar + Header)
+import Dashboard from './pages/Dashboard'; 
+import DashboardLayout from './layouts/DashboardLayout'; 
 import { ProtectedRoute } from './features/auth/components/ProtectedRoute';
 import UserManagement from './pages/UserManagement';
 import Campanas from './pages/Campanas';
 import Configuracion from './pages/Configuracion';
+import Roles from './pages/Roles';
 import { Toaster } from 'react-hot-toast';
+import Flujos from './pages/Flujos';
 
 function App() {
   return (
@@ -39,6 +41,12 @@ function App() {
 
           {/* Ruta para la pagina de configuracion */}
           <Route path="configuracion" element={<Configuracion />} />
+
+          {/* Ruta para la pagina de roles */}
+          <Route path="roles" element={<Roles />} />
+
+          {/* Ruta para la página de flujos */}
+          <Route path="flujos" element={<Flujos />} />
 
 
 

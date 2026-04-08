@@ -1,6 +1,6 @@
 import { useAuthStore } from '../features/auth/store/useAuthStore';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Users, LayoutDashboard, MessageSquare, Smartphone } from 'lucide-react';
+import { Users, LayoutDashboard, MessageSquare, Smartphone, Shield, Bot } from 'lucide-react';
 
 const DashboardLayout = () => {
     const { user, logout } = useAuthStore();
@@ -27,6 +27,9 @@ const DashboardLayout = () => {
 
                 <nav className="flex-1 p-4">
                     <ul className="space-y-2">
+                        {/* ========================================== */}
+                        {/* VISIBLE PARA TODOS */}
+                        {/* ========================================== */}
                         <li>
                             <Link to="/dashboard" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard')}`}>
                                 <LayoutDashboard size={20} />
@@ -34,28 +37,52 @@ const DashboardLayout = () => {
                             </Link>
                         </li>
 
-                        {/* ¡CANDADO RBAC! Solo Administrador ve Gestión de Usuarios */}
-                        {user?.role?.toUpperCase() === 'ADMINISTRADOR' && (
-                            <li>
-                                <Link to="/dashboard/users" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/users')}`}>
-                                    <Users size={20} />
-                                    Gestión Usuarios
-                                </Link>
-                            </li>
+                        {/* ========================================== */}
+                        {/* ZONA DE ADMINISTRACIÓN (Solo SuperAdmin y Admin) */}
+                        {/* ========================================== */}
+                        {(user?.role?.toUpperCase() === 'SUPERADMIN' || user?.role?.toUpperCase() === 'ADMINISTRADOR') && (
+                            <>
+                                <li>
+                                    <Link to="/dashboard/users" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/users')}`}>
+                                        <Users size={20} />
+                                        Gestión de Equipo
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/dashboard/roles" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/roles')}`}>
+                                        <Shield size={20} />
+                                        Roles y Permisos
+                                    </Link>
+                                </li>
+                            </>
                         )}
 
-                        <li>
-                            <Link to="/dashboard/configuracion" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/configuracion')}`}>
-                                <Smartphone size={20} />
-                                Canal WhatsApp
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/dashboard/campanas" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/campanas')}`}>
-                                <MessageSquare size={20} />
-                                Campañas
-                            </Link>
-                        </li>
+                        {/* ========================================== */}
+                        {/* ZONA DE OPERACIÓN (SuperAdmin, Admin y Operador) */}
+                        {/* ========================================== */}
+                        {(user?.role?.toUpperCase() === 'SUPERADMIN' || user?.role?.toUpperCase() === 'ADMINISTRADOR' || user?.role?.toUpperCase() === 'OPERADOR') && (
+                            <>
+                                <li>
+                                    <Link to="/dashboard/configuracion" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/configuracion')}`}>
+                                        <Smartphone size={20} />
+                                        Canal WhatsApp
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/dashboard/campanas" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/campanas')}`}>
+                                        <MessageSquare size={20} />
+                                        Campañas
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/dashboard/flujos" className={`p-3 rounded-lg cursor-pointer font-medium flex items-center gap-3 ${isActive('/dashboard/flujos')}`}>
+                                        <Bot size={20} />
+                                        Flujos / Bots
+                                    </Link>
+                                </li>
+
+                            </>
+                        )}
                     </ul>
                 </nav>
             </div>

@@ -194,7 +194,7 @@ const Campanas = () => {
                                 )}
 
                                 {isUploading && (
-                                    <div className="border-2 border-gray-200 rounded-lg p-6 text-center flex flex-col items-center justify-center h-[104px]">
+                                    <div className="border-2 border-gray-200 rounded-lg p-6 text-center flex flex-col items-center justify-center h-26">
                                         <Loader2 className="text-blue-500 animate-spin mb-2" size={24} />
                                         <p className="text-sm text-gray-600 font-medium">Analizando columnas y números...</p>
                                     </div>
