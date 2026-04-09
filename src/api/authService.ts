@@ -1,4 +1,3 @@
-// src/api/authService.ts
 import type { LoginCredentials, LoginResponse, RegisterData } from '../types/auth.types';
 
 export const loginToNodeBackend = async (data: LoginCredentials): Promise<LoginResponse> => {

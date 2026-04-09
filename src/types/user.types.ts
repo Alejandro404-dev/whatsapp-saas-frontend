@@ -4,3 +4,12 @@ export interface UserData {
     role: string;
     createdAt: string;
 }
+
+// Molde de lo que necesita nuestra tabla para pintar la interfaz
+export interface TableUser {
+    id: string;
+    nombre: string;
+    email: string;
+    rolNombre: string;
+    fechaUnion: string;
+}

@@ -32,30 +32,22 @@ export const RegisterForm = () => {
     const onSubmit = async (data: RegisterFormValues) => {
         setServerError(null);
         try {
-            // Mandamos los datos a Node
+            // 1. Mandamos los datos a Node
             const respuesta = await registerInNodeBackend({
                 companyName: data.companyName,
                 email: data.email,
                 password: data.password
             });
 
-            // Adaptamos lo que manda Node a lo que espera Zustand
-            const usuarioAdaptado = {
-                id: respuesta.usuario.id, 
-                email: respuesta.usuario.email,
-                tenantId: respuesta.usuario.tenantId,
-                role: respuesta.usuario.rol,   // Traducimos 'rol' a 'role'
-                nombreEmpresa: respuesta.usuario.nombreEmpresa,
-            };
+            // 2. Pasamos el usuario DIRECTO del backend al Store
+            login(respuesta.usuario, respuesta.token);
 
-            // Pasamos el usuario adaptado
-            login(usuarioAdaptado, respuesta.token);
-
-            alert(`¡Empresa registrada con éxito! Tu ID de Tenant es: ${respuesta.usuario.tenantId}`);
+            // 3. Mostramos éxito y redirigimos
+            alert(`¡Empresa registrada con éxito! Tu rol es: ${respuesta.usuario.role}`);
             navigate('/dashboard');
 
         } catch (error) {
-            // Usamos 'error' imprimiéndolo en consola para que TS no se queje de que no lo usamos
+            // Usamos 'error' imprimiéndolo en consola para que TS no se queje
             console.error(error);
             setServerError("Ocurrió un error al intentar crear la cuenta.");
         }

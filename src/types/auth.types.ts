@@ -8,8 +8,8 @@ export interface LoginResponse {
     usuario: {
         id: string;
         email: string;
-        rol: string;
-        accesos?: string[];
+        role: string;         
+        accesos: string[];    
         tenantId: string;
         nombreEmpresa: string;
     };

@@ -1,98 +1,141 @@
-import { useState } from 'react';
-import { Plus, Shield, Edit2, Trash2, X, CheckSquare, Lock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Shield, Edit2, Trash2, X, Check, Lock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
+import { obtenerRoles, crearRol, editarRol, eliminarRol } from '../api/roleService';
+import { useAuthStore } from '../features/auth/store/useAuthStore';
+import type { Role } from '../types/role.types';
 
-// Esquema de validacion
 const rolSchema = z.object({
     nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
-    permisos: z.array(z.string()).min(1, "Debes seleccionar al menos un permiso"),
+    // descripcion: z.string().optional(), // Podrías agregarlo si lo necesitas
 });
 
 type RolValues = z.infer<typeof rolSchema>;
 
-// Diccionario de permisos disponibles en el sistema
-const PERMISOS_SISTEMA = [
-    { id: 'ver_dashboard', nombre: 'Ver Panel Principal', desc: 'Acceso a metricas y graficos' },
-    { id: 'gestionar_campanas', nombre: 'Gestionar Campañas', desc: 'Crear, ver y lanzar envios masivos' },
-    { id: 'gestionar_flujos', nombre: 'Gestionar Flujos', desc: 'Crear y editar chatbots automatizados' },
-    { id: 'gestionar_usuarios', nombre: 'Gestionar Usuarios', desc: 'Crear y eliminar empleados del sistema' },
-    { id: 'configurar_canal_meta', nombre: 'Configuracion de Canal', desc: 'Modificar tokens y conexion con WhatsApp' },
+const PERMISOS_DISPONIBLES = [
+    { id: 'ver_dashboard', nombre: 'Ver Dashboard', modulo: 'General' },
+    { id: 'gestionar_campanas', nombre: 'Gestionar Campañas', modulo: 'Marketing' },
+    { id: 'configurar_bots', nombre: 'Configurar Chatbots', modulo: 'Automatización' },
+    { id: 'gestionar_usuarios', nombre: 'Gestionar Equipo', modulo: 'Administración' },
+    { id: 'configurar_sistema', nombre: 'Configuración Avanzada', modulo: 'Administración' },
 ];
 
 const Roles = () => {
-    // Estado inicial. Nota la propiedad 'protegido' en el rol de Administrador
-    const [roles, setRoles] = useState([
-        { id: 1, nombre: "Administrador", permisos: ["ver_dashboard", "gestionar_campanas", "gestionar_flujos", "gestionar_usuarios", "configurar_canal_meta"], usuariosActivos: 2, protegido: true },
-        { id: 2, nombre: "Operador de Ventas", permisos: ["ver_dashboard", "gestionar_campanas"], usuariosActivos: 5, protegido: false },
-    ]);
-
+    const { user } = useAuthStore();
+    const [roles, setRoles] = useState<Role[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [rolEnEdicion, setRolEnEdicion] = useState<number | null>(null);
+    const [rolEnEdicion, setRolEnEdicion] = useState<string | null>(null);
+
+    // Estado para los checkboxes
+    const [permisosSeleccionados, setPermisosSeleccionados] = useState<string[]>([]);
 
     const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<RolValues>({
-        resolver: zodResolver(rolSchema),
-        defaultValues: {
-            permisos: []
-        }
+        resolver: zodResolver(rolSchema)
     });
+
+    const esSuperAdmin = user?.role === 'SuperAdmin';
+
+    useEffect(() => {
+        const cargarRoles = async () => {
+            if (!user?.tenantId) return;
+            try {
+                const data = await obtenerRoles(user.tenantId);
+                setRoles(data);
+            } catch (error) {
+                console.error("Error al cargar roles:", error);
+                toast.error("Error al cargar los roles");
+            }
+        };
+        cargarRoles();
+    }, [user?.tenantId]);
 
     const abrirModalNuevo = () => {
         setRolEnEdicion(null);
-        reset({ nombre: '', permisos: [] });
+        reset({ nombre: '' });
+        setPermisosSeleccionados([]);
         setIsModalOpen(true);
     };
 
-    const abrirModalEdicion = (rol: typeof roles[0]) => {
-        if (rol.protegido) {
-            toast.error("Los roles del sistema no pueden ser editados");
-            return;
-        }
+    const abrirModalEdicion = (rol: Role) => {
         setRolEnEdicion(rol.id);
         setValue('nombre', rol.nombre);
-        setValue('permisos', rol.permisos);
+        setPermisosSeleccionados(rol.permisos);
         setIsModalOpen(true);
     };
 
-    const cerrarModal = () => {
-        setIsModalOpen(false);
-        reset();
+    const togglePermiso = (idPermiso: string) => {
+        setPermisosSeleccionados(prev =>
+            prev.includes(idPermiso)
+                ? prev.filter(p => p !== idPermiso)
+                : [...prev, idPermiso]
+        );
     };
 
-    const onSubmit = (data: RolValues) => {
-        if (rolEnEdicion) {
-            // Logica de actualizacion
-            setRoles(roles.map(r => r.id === rolEnEdicion ? { ...r, nombre: data.nombre, permisos: data.permisos } : r));
-            toast.success("Rol actualizado correctamente");
-        } else {
-            // Logica de creacion (los nuevos roles NUNCA son protegidos)
-            const nuevoRol = {
-                id: roles.length + 1,
-                nombre: data.nombre,
-                permisos: data.permisos,
-                usuariosActivos: 0,
-                protegido: false 
-            };
-            setRoles([nuevoRol, ...roles]);
-            toast.success("Nuevo rol creado");
+    const onSubmit = async (data: RolValues) => {
+        if (!user?.tenantId) return;
+
+        try {
+            toast.loading(rolEnEdicion ? "Actualizando..." : "Creando...", { id: "formRol" });
+
+            if (rolEnEdicion) {
+                await editarRol(rolEnEdicion, {
+                    nombre: data.nombre,
+                    permisos: permisosSeleccionados
+                });
+
+                // Actualizar estado local
+                setRoles(roles.map(r => r.id === rolEnEdicion ? { ...r, nombre: data.nombre, permisos: permisosSeleccionados } : r));
+                toast.success("Rol actualizado", { id: "formRol" });
+            } else {
+                const nuevo = await crearRol({
+                    nombre: data.nombre,
+                    permisos: permisosSeleccionados,
+                    tenantId: user.tenantId
+                });
+
+                // Aseguramos que el nuevo rol se formatee correctamente para la UI
+                const rolParaTabla: Role = {
+                    id: nuevo.id,
+                    nombre: nuevo.name, // Asegúrate de que backend devuelve name
+                    permisos: nuevo.permissions || [], // Y permissions
+                    usuariosActivos: 0,
+                    protegido: false
+                };
+
+                setRoles([...roles, rolParaTabla]);
+                toast.success("Rol creado", { id: "formRol" });
+            }
+
+            setIsModalOpen(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al guardar el rol", { id: "formRol" });
         }
-        cerrarModal();
     };
 
-    const eliminarRol = (id: number, usuariosActivos: number, protegido: boolean) => {
-        if (protegido) {
-            toast.error("No puedes eliminar un rol nativo del sistema");
+    const handleDelete = async (rol: Role) => {
+        if (rol.protegido) {
+            toast.error("No puedes eliminar un rol del sistema.");
             return;
         }
-        if (usuariosActivos > 0) {
-            toast.error("No puedes eliminar un rol que tiene usuarios asignados");
+        if (rol.usuariosActivos > 0) {
+            toast.error("No puedes eliminar un rol con usuarios asignados.");
             return;
         }
-        if (confirm("¿Estas seguro de eliminar este rol?")) {
-            setRoles(roles.filter(r => r.id !== id));
-            toast.success("Rol eliminado");
+
+        if (confirm(`¿Eliminar el rol ${rol.nombre}?`)) {
+            try {
+                toast.loading("Eliminando...", { id: "delRol" });
+                await eliminarRol(rol.id);
+                setRoles(roles.filter(r => r.id !== rol.id));
+                toast.success("Rol eliminado", { id: "delRol" });
+            } catch (error) {
+                console.error("Error al eliminar rol:", error);
+                toast.error("Error al eliminar", { id: "delRol" });
+            }
         }
     };
 
@@ -101,142 +144,133 @@ const Roles = () => {
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800">Roles y Permisos</h2>
-                    <p className="text-gray-500">Crea niveles de acceso personalizados para tu equipo</p>
+                    <p className="text-gray-500">Configura los niveles de acceso para tu equipo</p>
                 </div>
-                <button 
-                    onClick={abrirModalNuevo}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
-                >
-                    <Plus size={20} />
-                    Nuevo Rol
-                </button>
+                {/* Solo mostramos el botón si es SuperAdmin (o si quieres que los Admins también creen roles, puedes quitar esta condición) */}
+                {esSuperAdmin && (
+                    <button
+                        onClick={abrirModalNuevo}
+                        className="flex items-center gap-2 bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-lg transition-colors shadow-lg"
+                    >
+                        <Plus size={20} />
+                        Crear Rol
+                    </button>
+                )}
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th className="px-6 py-4 text-sm font-semibold text-gray-600">Nombre del Rol</th>
-                            <th className="px-6 py-4 text-sm font-semibold text-gray-600">Permisos Asignados</th>
-                            <th className="px-6 py-4 text-sm font-semibold text-gray-600">Usuarios Activos</th>
-                            <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {roles.map((rol) => (
-                            <tr key={rol.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center">
-                                            {/* Si es protegido muestra un candado, si no, un escudo */}
-                                            {rol.protegido ? <Lock size={16} className="text-slate-400" /> : <Shield size={16} />}
-                                        </div>
-                                        <span className={`font-bold ${rol.protegido ? 'text-slate-500' : 'text-gray-700'}`}>
-                                            {rol.nombre}
-                                            {rol.protegido && <span className="ml-2 text-xs font-normal bg-slate-100 px-2 py-0.5 rounded text-slate-500">Sistema</span>}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-wrap gap-1">
-                                        <span className={`px-2 py-1 rounded text-xs font-medium border ${rol.protegido ? 'bg-slate-50 text-slate-600 border-slate-200' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>
-                                            {rol.permisos.length === PERMISOS_SISTEMA.length ? 'Acceso Total' : `${rol.permisos.length} accesos concedidos`}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className="text-gray-600 font-medium">{rol.usuariosActivos} miembros</span>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end gap-2">
-                                        {/* Boton Editar */}
-                                        <button 
-                                            onClick={() => abrirModalEdicion(rol)}
-                                            className={`p-2 transition-colors ${rol.protegido ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-blue-600'}`}
-                                            title={rol.protegido ? "Rol protegido del sistema" : "Editar Rol"}
-                                            disabled={rol.protegido}
-                                        >
-                                            <Edit2 size={18} />
-                                        </button>
-                                        {/* Boton Eliminar */}
-                                        <button 
-                                            onClick={() => eliminarRol(rol.id, rol.usuariosActivos, rol.protegido ?? false)}
-                                            className={`p-2 transition-colors ${rol.protegido || rol.usuariosActivos > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600'}`}
-                                            title={rol.protegido ? "Rol protegido del sistema" : "Eliminar Rol"}
-                                            disabled={rol.protegido}
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* MODAL DE CREACION/EDICION */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
-                            <h3 className="text-xl font-bold text-gray-800">
-                                {rolEnEdicion ? 'Editar Rol' : 'Crear Nuevo Rol'}
-                            </h3>
-                            <button onClick={cerrarModal} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <X size={24} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col overflow-hidden">
-                            <div className="p-6 overflow-y-auto space-y-6">
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Nombre del Rol</label>
-                                    <input 
-                                        {...register("nombre")} 
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
-                                        placeholder="Ej: Analista de Marketing" 
-                                    />
-                                    {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre.message}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {roles.map(rol => (
+                    <div key={rol.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col h-full">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-3 rounded-lg ${rol.protegido ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                                    {rol.protegido ? <Lock size={24} /> : <Shield size={24} />}
                                 </div>
-
                                 <div>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <CheckSquare size={18} className="text-blue-600" />
-                                        <label className="block text-sm font-bold text-gray-700">Permisos del Sistema</label>
-                                    </div>
-                                    
-                                    <div className="space-y-2 border border-gray-100 rounded-lg p-1 bg-gray-50">
-                                        {PERMISOS_SISTEMA.map((permiso) => (
-                                            <label 
-                                                key={permiso.id} 
-                                                className="flex items-start gap-3 p-3 rounded hover:bg-white transition-colors cursor-pointer border border-transparent hover:border-gray-200 hover:shadow-sm"
-                                            >
-                                                <div className="pt-0.5">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        value={permiso.id}
-                                                        {...register("permisos")}
-                                                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-gray-800 text-sm">{permiso.nombre}</p>
-                                                    <p className="text-xs text-gray-500 mt-0.5">{permiso.desc}</p>
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
-                                    {errors.permisos && <p className="text-red-500 text-xs mt-2">{errors.permisos.message}</p>}
+                                    <h3 className="font-bold text-lg text-gray-800">{rol.nombre}</h3>
+                                    <p className="text-sm text-gray-500">{rol.usuariosActivos} usuarios</p>
                                 </div>
                             </div>
 
-                            <div className="p-6 border-t border-gray-100 bg-gray-50 shrink-0 flex gap-3">
-                                <button type="button" onClick={cerrarModal} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-white transition-colors font-medium">
-                                    Cancelar
+                            <div className="flex gap-2">
+                                {/* Lógica de edición: SuperAdmin puede editar todo menos otros SuperAdmins (si hubiera). Un rol protegido no se edita salvo que sea SuperAdmin editando un rol base, pero por simplicidad de la regla: */}
+                                <button
+                                    onClick={() => abrirModalEdicion(rol)}
+                                    className={`p-2 transition-colors ${rol.protegido && !esSuperAdmin ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-blue-600'}`}
+                                    disabled={rol.protegido && !esSuperAdmin}
+                                    title={rol.protegido && !esSuperAdmin ? "Solo el SuperAdmin puede editar este rol" : "Editar rol"}
+                                >
+                                    <Edit2 size={18} />
                                 </button>
-                                <button type="submit" className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-black transition-colors font-medium">
-                                    Guardar Rol
+
+                                <button
+                                    onClick={() => handleDelete(rol)}
+                                    className={`p-2 transition-colors ${rol.protegido || rol.usuariosActivos > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600'}`}
+                                    disabled={rol.protegido || rol.usuariosActivos > 0}
+                                    title={rol.protegido ? "Rol protegido" : rol.usuariosActivos > 0 ? "Tiene usuarios" : "Eliminar rol"}
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 flex-grow">
+                            <p className="text-sm font-semibold text-gray-600 mb-2">Permisos incluidos:</p>
+                            <ul className="space-y-2">
+                                {rol.permisos.includes('ALL') ? (
+                                    <li className="flex items-center gap-2 text-sm text-purple-600 font-medium bg-purple-50 p-2 rounded">
+                                        <Check size={16} /> Acceso Total al Sistema
+                                    </li>
+                                ) : rol.permisos.length > 0 ? (
+                                    rol.permisos.map((p, index) => {
+                                        const permInfo = PERMISOS_DISPONIBLES.find(pd => pd.id === p);
+                                        return (
+                                            <li key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                                                <Check size={16} className="text-green-500" />
+                                                {permInfo ? permInfo.nombre : p}
+                                            </li>
+                                        )
+                                    })
+                                ) : (
+                                    <li className="text-sm text-gray-400 italic">Sin permisos específicos</li>
+                                )}
+                            </ul>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Modal de Creación/Edición */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-gray-800">
+                                {rolEnEdicion ? 'Editar Rol' : 'Crear Nuevo Rol'}
+                            </h3>
+                            <button onClick={() => setIsModalOpen(false)}><X size={24} className="text-gray-400" /></button>
+                        </div>
+
+                        <form onSubmit={handleSubmit(onSubmit)} className="p-6 overflow-y-auto flex-grow space-y-6">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Nombre del Rol</label>
+                                <input
+                                    {...register("nombre")}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    placeholder="Ej: Editor de Marketing"
+                                />
+                                {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre.message}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-4">Selecciona los Permisos</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {PERMISOS_DISPONIBLES.map(permiso => (
+                                        <div
+                                            key={permiso.id}
+                                            onClick={() => togglePermiso(permiso.id)}
+                                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3
+                                                ${permisosSeleccionados.includes(permiso.id)
+                                                    ? 'border-blue-500 bg-blue-50'
+                                                    : 'border-gray-200 hover:border-blue-200'}`}
+                                        >
+                                            <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center flex-shrink-0
+                                                ${permisosSeleccionados.includes(permiso.id) ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300'}`}>
+                                                {permisosSeleccionados.includes(permiso.id) && <Check size={14} />}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-gray-800 text-sm">{permiso.nombre}</p>
+                                                <p className="text-xs text-gray-500 mt-0.5">{permiso.modulo}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="pt-6 border-t border-gray-100 flex gap-3">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 border border-gray-300 rounded-lg font-medium text-gray-600 hover:bg-gray-50">Cancelar</button>
+                                <button type="submit" className="flex-1 py-2 bg-slate-900 text-white rounded-lg font-bold hover:bg-black transition-all">
+                                    {rolEnEdicion ? 'Guardar Cambios' : 'Crear Rol'}
                                 </button>
                             </div>
                         </form>

@@ -1,9 +1,10 @@
 import { useAuthStore } from '../features/auth/store/useAuthStore';
 import { MessageSquare, TrendingUp, Users, Smartphone, Activity, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
     const { user } = useAuthStore();
+    const navigate = useNavigate();
 
     const stats = [
         { title: "Mensajes Enviados", value: "14,592", trend: "+12.5%", trendUp: true, icon: <MessageSquare size={24} className="text-blue-600" />, bgColor: "bg-blue-50" },
@@ -14,6 +15,7 @@ const Dashboard = () => {
 
     return (
         <div className="p-8">
+            {/* ENCABEZADO */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-800">
                     Hola, {user?.email?.split('@')[0] || 'Usuario'} 👋
@@ -23,6 +25,7 @@ const Dashboard = () => {
                 </p>
             </div>
 
+            {/* TARJETAS DE ESTADÍSTICAS */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {stats.map((stat, index) => (
                     <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
@@ -38,44 +41,69 @@ const Dashboard = () => {
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h2 className="text-lg font-bold text-gray-800 mb-6">Acciones Rápidas</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Link
-                            to="/dashboard/campanas"
-                            state={{ abrirModal: true }}
-                            className="group flex items-center p-4 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+            {/* CONTENEDOR INFERIOR: Dos columnas simétricas */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 items-start">
+                
+                {/* COLUMNA IZQUIERDA: Acciones Rápidas */}
+                <div className="lg:col-span-2">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Acciones Rápidas</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        {/* 1. TARJETA DE NUEVA CAMPAÑA */}
+                        <div 
+                            onClick={() => navigate('/dashboard/campanas')} 
+                            className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm cursor-pointer hover:border-blue-200 hover:shadow-md transition-all flex items-center justify-between"
                         >
-                            <div className="bg-blue-100 p-2 rounded-lg text-blue-600 mr-4"><MessageSquare size={20} /></div>
-                            <div className="flex-1">
-                                <h4 className="font-semibold text-gray-800 group-hover:text-blue-700">Nueva Campaña</h4>
-                                <p className="text-xs text-gray-500">Envía mensajes masivos</p>
-                            </div>
-                            <ArrowRight size={16} className="text-gray-400 group-hover:text-blue-600" />
-                        </Link>
-                        {user?.role?.toUpperCase() === 'ADMINISTRADOR' && (
-                            <Link to="/dashboard/users" className="group flex items-center p-4 border border-gray-100 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all">
-                                <div className="bg-purple-100 p-2 rounded-lg text-purple-600 mr-4"><Users size={20} /></div>
-                                <div className="flex-1">
-                                    <h4 className="font-semibold text-gray-800 group-hover:text-purple-700">Gestión de Equipo</h4>
-                                    <p className="text-xs text-gray-500">Administra accesos</p>
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                                    <MessageSquare size={24} />
                                 </div>
-                                <ArrowRight size={16} className="text-gray-400 group-hover:text-purple-600" />
-                            </Link>
+                                <div>
+                                    <h4 className="font-bold text-gray-800 text-sm">Nueva Campaña</h4>
+                                    <p className="text-xs text-gray-500">Envía mensajes masivos</p>
+                                </div>
+                            </div>
+                            <ArrowRight size={20} className="text-gray-300" />
+                        </div>
+
+                        {/* 2. TARJETA DE GESTIÓN DE EQUIPO */}
+                        {(user?.role === 'SuperAdmin' || user?.accesos?.includes('gestionar_usuarios')) && (
+                            <div 
+                                onClick={() => navigate('/dashboard/users')} 
+                                className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm cursor-pointer hover:border-blue-200 hover:shadow-md transition-all flex items-center gap-4"
+                            >
+                                <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                                    <Users size={24} />
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-gray-800 text-sm">Añadir Miembro</h4>
+                                    <p className="text-xs text-gray-500">Invita a tu equipo al sistema</p>
+                                </div>
+                            </div>
                         )}
+
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h2 className="text-lg font-bold text-gray-800 mb-6">Estado del Sistema</h2>
-                    <div className="space-y-6">
-                        <div className="flex items-center">
-                            <div className="relative"><Activity size={20} className="text-green-500 mr-3" /><span className="absolute top-0 right-3 w-2 h-2 bg-green-500 rounded-full animate-ping"></span></div>
-                            <div><p className="text-sm font-semibold text-gray-800">Conexión API Meta</p><p className="text-xs text-gray-500">En línea y funcionando</p></div>
+                {/* COLUMNA DERECHA: Estado del Sistema */}
+                <div className="lg:col-span-1">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Estado del Sistema</h3>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-[1.15rem]">
+                        <div className="space-y-6">
+                            <div className="flex items-center">
+                                <div className="relative">
+                                    <Activity size={20} className="text-green-500 mr-3" />
+                                    <span className="absolute top-0 right-3 w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-gray-800">Conexión API Meta</p>
+                                    <p className="text-xs text-gray-500">En línea y funcionando</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     );

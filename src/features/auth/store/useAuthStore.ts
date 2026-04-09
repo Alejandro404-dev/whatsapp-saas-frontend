@@ -1,14 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-
-// Definimos los datos que queremos guardar de usuario
 interface User {
     id: string;
     email: string;
-    tenantId: string; // Cruacial para saber a que empresa pertenece
-    role: string
+    tenantId: string; 
+    role: string; // <-- Siempre 'role'
     nombreEmpresa: string;
+    accesos: string[]; // <-- Siempre 'accesos'
 }
 
 interface AuthState {
@@ -25,9 +24,10 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             token: null,
             isAuthenticated: false,
+            // Guardamos el objeto 'user' tal cual llega del backend
             login: (user, token) => set({ user, token, isAuthenticated: true }),
             logout: () => set({ user: null, token: null, isAuthenticated: false }),
         }),
-        { name: 'auth-storage' } // Esto guarda los datos en el LocalStorage automáticamente
+        { name: 'auth-storage' }
     )
 );

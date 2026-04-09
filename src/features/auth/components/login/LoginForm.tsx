@@ -31,19 +31,11 @@ export const LoginForm = () => {
             // 1. Tocamos la puerta de Node y PostgreSQL
             const respuesta = await loginToNodeBackend(data);
             
-            const usuarioAdaptado = {
-                id: respuesta.usuario.id,
-                email: respuesta.usuario.email,
-                tenantId: respuesta.usuario.tenantId,
-                role: respuesta.usuario.rol, // Traducimos 'rol' a 'role' para que TypeScript no se queje
-                nombreEmpresa: respuesta.usuario.nombreEmpresa,
-            };
-
-            // 3. Le damos el "Pase VIP" a nuestra memoria global
-            login(usuarioAdaptado, respuesta.token);
+            // 2. Le pasamos el objeto DIRECTO del backend al Store (porque ya coinciden los nombres)
+            login(respuesta.usuario, respuesta.token);
             
-            // 4. Ahora sí, mostramos la alerta y entramos al Dashboard
-            alert(`¡Bienvenido! Rol: ${respuesta.usuario.rol}`);
+            // 3. Mostramos la alerta y entramos al Dashboard
+            alert(`¡Bienvenido! Rol: ${respuesta.usuario.role}`);
             navigate('/dashboard');
 
         } catch (err: unknown) {
@@ -51,6 +43,7 @@ export const LoginForm = () => {
             setAuthError(errorBackend.mensaje || "Error de conexión con el servidor");
         }
     };
+    
     return (
         <div className="login-container">
             <form onSubmit={handleSubmit(onSubmit)}>
