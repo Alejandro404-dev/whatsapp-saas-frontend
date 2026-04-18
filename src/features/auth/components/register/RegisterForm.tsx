@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { registerInNodeBackend } from '../../../../api/authService';
 import { useAuthStore } from '../../store/useAuthStore';
 import './RegisterForm.css';
+import { toast } from 'react-hot-toast/headless';
 
 // 1. El contrato: Zod valida que las contraseñas sean idénticas
 const registerSchema = z.object({
@@ -43,7 +44,7 @@ export const RegisterForm = () => {
             login(respuesta.usuario, respuesta.token);
 
             // 3. Mostramos éxito y redirigimos
-            alert(`¡Empresa registrada con éxito! Tu rol es: ${respuesta.usuario.role}`);
+            toast.success(`¡Bienvenido! Rol: ${respuesta.usuario.role}`);
             navigate('/dashboard');
 
         } catch (error) {

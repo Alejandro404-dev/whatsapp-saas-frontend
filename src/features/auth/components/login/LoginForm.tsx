@@ -7,6 +7,7 @@ import { loginToNodeBackend } from '../../../../api/authService';
 import type { LoginError } from '../../../../types/auth.types';
 import { useAuthStore } from '../../store/useAuthStore';
 import './LoginForm.css';
+import toast from 'react-hot-toast';
 
 const loginSchema = z.object({
     email: z.string().email("Formato de correo inválido"),
@@ -35,7 +36,7 @@ export const LoginForm = () => {
             login(respuesta.usuario, respuesta.token);
             
             // 3. Mostramos la alerta y entramos al Dashboard
-            alert(`¡Bienvenido! Rol: ${respuesta.usuario.role}`);
+            toast.success(`¡Bienvenido! Rol: ${respuesta.usuario.role}`);
             navigate('/dashboard');
 
         } catch (err: unknown) {

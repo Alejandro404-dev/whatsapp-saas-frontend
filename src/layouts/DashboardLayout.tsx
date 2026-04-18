@@ -2,6 +2,7 @@ import { useAuthStore } from '../features/auth/store/useAuthStore';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
 import { Users, LayoutDashboard, MessageSquare, Smartphone, Shield, Bot } from 'lucide-react';
 import { useEffect } from 'react';
+import { toast } from 'react-hot-toast/headless';
 
 const DashboardLayout = () => {
     const { user, logout } = useAuthStore();
@@ -10,6 +11,7 @@ const DashboardLayout = () => {
 
     const handleLogout = () => {
         logout();
+        toast.success("Sesión cerrada. ¡Vuelve pronto!");
         navigate('/login');
     };
 

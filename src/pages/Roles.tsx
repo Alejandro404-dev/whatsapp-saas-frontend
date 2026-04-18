@@ -99,8 +99,8 @@ const Roles = () => {
                 // Aseguramos que el nuevo rol se formatee correctamente para la UI
                 const rolParaTabla: Role = {
                     id: nuevo.id,
-                    nombre: nuevo.name, // Asegúrate de que backend devuelve name
-                    permisos: nuevo.permissions || [], // Y permissions
+                    nombre: nuevo.name, 
+                    permisos: nuevo.permissions || [], 
                     usuariosActivos: 0,
                     protegido: false
                 };

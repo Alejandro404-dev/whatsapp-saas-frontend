@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Users, Edit2, Trash2, X, ShieldCheck, Mail, ShieldAlert } from 'lucide-react';
+import { Plus, Users, Edit2, Trash2, X, ShieldCheck, Mail, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,8 +24,9 @@ const UserManagement = () => {
     const [rolesDisponibles, setRolesDisponibles] = useState<Role[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [usuarioEnEdicion, setUsuarioEnEdicion] = useState<string | null>(null);
+    const [usuarioAEliminar, setUsuarioAEliminar] = useState<TableUser | null>(null);
 
-    const { register, handleSubmit, reset, setValue} = useForm<UsuarioValues>({
+    const { register, handleSubmit, reset, setValue } = useForm<UsuarioValues>({
         resolver: zodResolver(usuarioSchema)
     });
 
@@ -45,7 +46,7 @@ const UserManagement = () => {
                     rolNombre: u.role,
                     fechaUnion: new Date(u.createdAt).toLocaleDateString()
                 }));
-                
+
                 setUsuarios(mapeados);
                 setRolesDisponibles(datosRoles);
             } catch (error) {
@@ -60,7 +61,7 @@ const UserManagement = () => {
         const nombreStr = rolNombre.toLowerCase();
         if (nombreStr === 'superadmin') return 'bg-purple-100 text-purple-700';
         if (nombreStr === 'admin' || nombreStr === 'administrador') return 'bg-blue-100 text-blue-700';
-        return 'bg-slate-100 text-slate-700'; 
+        return 'bg-slate-100 text-slate-700';
     };
 
     const abrirModalNuevo = () => {
@@ -88,14 +89,14 @@ const UserManagement = () => {
                     roleName: data.rolNombre
                 });
 
-                setUsuarios(usuarios.map(u => u.id === usuarioEnEdicion ? { 
-                    ...u, nombre: data.nombre, email: usuarioEditadoBD.email, rolNombre: usuarioEditadoBD.role 
+                setUsuarios(usuarios.map(u => u.id === usuarioEnEdicion ? {
+                    ...u, nombre: data.nombre, email: usuarioEditadoBD.email, rolNombre: usuarioEditadoBD.role
                 } : u));
                 toast.success("Usuario actualizado", { id: "formUsuario" });
             } else {
                 const nuevoEmpleadoBD = await crearUsuario({
                     email: data.email,
-                    password: "Password123*", 
+                    password: "Password123*",
                     roleName: data.rolNombre,
                     tenantId: user.tenantId
                 });
@@ -119,19 +120,33 @@ const UserManagement = () => {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm("¿Estás seguro de eliminar este usuario del sistema?")) {
-            try {
-                toast.loading("Eliminando...", { id: "borrar" });
-                await eliminarUsuario(id);
-                setUsuarios(usuarios.filter(u => u.id !== id));
-                toast.success("Usuario eliminado", { id: "borrar" });
-            } catch (error) {
+    // 1. Función que abre el modal de confirmación
+    const iniciarEliminacion = (u: TableUser) => {
+        setUsuarioAEliminar(u);
+    };
+
+    // 2. Función que realmente ejecuta el borrado en el backend
+    const ejecutarEliminacion = async () => {
+        if (!usuarioAEliminar) return;
+
+        const id = usuarioAEliminar.id;
+        try {
+            toast.loading("Eliminando...", { id: "borrar" });
+
+            await eliminarUsuario(id);
+            setUsuarios(prev => prev.filter(u => u.id !== id));
+
+            toast.success("Usuario eliminado correctamente", { id: "borrar" });
+        } catch (error) {
             console.error("Error al eliminar usuario:", error);
-            toast.error("Error al eliminar", { id: "borrar" });
-        }
+            const err = error as { response?: { data?: { error?: string } } };
+            toast.error(err.response?.data?.error || "Error al eliminar", { id: "borrar" });
+        } finally {
+            // Cerramos el modal independientemente de si fallo o tuvo exito
+            setUsuarioAEliminar(null);
         }
     };
+
 
     return (
         <div className="p-8">
@@ -184,7 +199,7 @@ const UserManagement = () => {
                                             <button onClick={() => !esMiCuenta && abrirModalEdicion(u)} className={`p-2 transition-colors ${esMiCuenta ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-blue-600'}`} disabled={esMiCuenta}>
                                                 <Edit2 size={18} />
                                             </button>
-                                            <button onClick={() => !esMiCuenta && handleDelete(u.id)} className={`p-2 transition-colors ${esMiCuenta ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600'}`} disabled={esMiCuenta}>
+                                            <button onClick={() => !esMiCuenta && iniciarEliminacion(u)} className={`p-2 transition-colors ${esMiCuenta ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600'}`} disabled={esMiCuenta}>
                                                 <Trash2 size={18} />
                                             </button>
                                         </div>
@@ -243,6 +258,37 @@ const UserManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
+            {usuarioAEliminar && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all">
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+                            <AlertTriangle size={32} className="text-red-500" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">¿Eliminar usuario?</h3>
+                        <p className="text-gray-500 text-sm mb-6">
+                            Estás a punto de eliminar a <span className="font-bold text-gray-700">{usuarioAEliminar.nombre}</span>. Esta acción es permanente y no se puede deshacer.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setUsuarioAEliminar(null)}
+                                className="flex-1 py-2.5 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50 font-semibold transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={ejecutarEliminacion}
+                                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-md shadow-red-200 transition-colors"
+                            >
+                                Sí, eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
         </div>
     );
 };
