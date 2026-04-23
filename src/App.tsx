@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard'; 
-import DashboardLayout from './layouts/DashboardLayout'; 
+import Dashboard from './pages/Dashboard';
+import DashboardLayout from './layouts/DashboardLayout';
 import { ProtectedRoute } from './features/auth/components/ProtectedRoute';
 import UserManagement from './pages/UserManagement';
 import Campanas from './pages/Campanas';
@@ -10,12 +10,13 @@ import Configuracion from './pages/Configuracion';
 import Roles from './pages/Roles';
 import { Toaster } from 'react-hot-toast';
 import Flujos from './pages/Flujos';
+import UpdatePassword from './pages/UpdatePassword';
 
 function App() {
   return (
     <Router>
       <Toaster position="top-right" reverseOrder={false} />
-      
+
       <Routes>
         {/* Rutas Públicas */}
         <Route path="/login" element={<Login />} />
@@ -51,6 +52,26 @@ function App() {
 
 
         </Route>
+
+        {/* ========================================== */}
+        {/* RUTA PARA CAMBIO DE CONTRASEÑA OBLIGATORIO */}
+        {/* ========================================== */}
+        <Route path="/actualizar-password" element={
+          <ProtectedRoute>
+            <UpdatePassword />
+          </ProtectedRoute>
+        } />
+
+        {/* ========================================== */}
+        {/* RUTA PARA CAMBIO DE CONTRASEÑA OBLIGATORIO */}
+        {/* ========================================== */}
+        <Route path="/actualizar-password" element={
+          <ProtectedRoute>
+            <UpdatePassword />
+          </ProtectedRoute>
+        } />
+
+
 
       </Routes>
     </Router>

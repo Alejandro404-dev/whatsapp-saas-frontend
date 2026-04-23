@@ -7,7 +7,8 @@ interface User {
     tenantId: string; 
     role: string; // <-- Siempre 'role'
     nombreEmpresa: string;
-    accesos: string[]; // <-- Siempre 'accesos'
+    accesos: string[]; 
+    requirePasswordChange: boolean;
 }
 
 interface AuthState {

@@ -12,6 +12,7 @@ export interface LoginResponse {
         accesos: string[];    
         tenantId: string;
         nombreEmpresa: string;
+        requirePasswordChange: boolean;
     };
     token: string;
 }
