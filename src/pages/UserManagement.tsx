@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Users, Edit2, Trash2, X, ShieldCheck, Mail, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Plus, Users, Edit2, Trash2, X, ShieldCheck, Mail, ShieldAlert, AlertTriangle, Lock, Unlock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
-import { obtenerUsuarios, crearUsuario, eliminarUsuario, editarUsuario } from '../api/userService';
+import { obtenerUsuarios, crearUsuario, eliminarUsuario, editarUsuario, cambiarEstadoUsuario } from '../api/userService';
 import { obtenerRoles } from '../api/roleService';
 import { useAuthStore } from '../features/auth/store/useAuthStore';
 import type { UserData, TableUser } from '../types/user.types';
@@ -44,7 +44,8 @@ const UserManagement = () => {
                     nombre: u.email.split('@')[0],
                     email: u.email,
                     rolNombre: u.role,
-                    fechaUnion: new Date(u.createdAt).toLocaleDateString()
+                    fechaUnion: new Date(u.createdAt).toLocaleDateString(),
+                    isActive: Boolean(u.isActive) // Mapeamos el estado del backend
                 }));
 
                 setUsuarios(mapeados);
@@ -90,7 +91,7 @@ const UserManagement = () => {
                 });
 
                 setUsuarios(usuarios.map(u => u.id === usuarioEnEdicion ? {
-                    ...u, nombre: data.nombre, email: usuarioEditadoBD.email, rolNombre: usuarioEditadoBD.role
+                    ...u, nombre: data.nombre, email: usuarioEditadoBD.email, rolNombre: usuarioEditadoBD.role, isActive: Boolean(usuarioEditadoBD.isActive)
                 } : u));
                 toast.success("Usuario actualizado", { id: "formUsuario" });
             } else {
@@ -106,7 +107,8 @@ const UserManagement = () => {
                     nombre: data.nombre,
                     email: nuevoEmpleadoBD.email,
                     rolNombre: nuevoEmpleadoBD.role,
-                    fechaUnion: new Date(nuevoEmpleadoBD.createdAt).toLocaleDateString()
+                    fechaUnion: new Date(nuevoEmpleadoBD.createdAt).toLocaleDateString(),
+                    isActive: true // Por defecto al crear es true
                 };
 
                 setUsuarios([usuarioParaTabla, ...usuarios]);
@@ -120,12 +122,29 @@ const UserManagement = () => {
         }
     };
 
-    // 1. Función que abre el modal de confirmación
+    const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+        try {
+            toast.loading(currentStatus ? "Bloqueando acceso..." : "Permitiendo acceso...", { id: "status" });
+            
+            const usuarioActualizado = await cambiarEstadoUsuario(id);
+            
+            setUsuarios(prev => prev.map(u => 
+                u.id === id ? { ...u, isActive: usuarioActualizado.isActive } : u
+            ));
+
+            const mensaje = usuarioActualizado.isActive ? "Usuario activado" : "Usuario bloqueado";
+            toast.success(mensaje, { id: "status" });
+        } catch (error) {
+            console.error("Error al cambiar estado:", error);
+            const err = error as { response?: { data?: { error?: string } } };
+            toast.error(err.response?.data?.error || "Error al cambiar estado", { id: "status" });
+        }
+    };
+
     const iniciarEliminacion = (u: TableUser) => {
         setUsuarioAEliminar(u);
     };
 
-    // 2. Función que realmente ejecuta el borrado en el backend
     const ejecutarEliminacion = async () => {
         if (!usuarioAEliminar) return;
 
@@ -142,11 +161,9 @@ const UserManagement = () => {
             const err = error as { response?: { data?: { error?: string } } };
             toast.error(err.response?.data?.error || "Error al eliminar", { id: "borrar" });
         } finally {
-            // Cerramos el modal independientemente de si fallo o tuvo exito
             setUsuarioAEliminar(null);
         }
     };
-
 
     return (
         <div className="p-8">
@@ -174,15 +191,17 @@ const UserManagement = () => {
                         {usuarios.map((u) => {
                             const esMiCuenta = u.email === user?.email;
                             return (
-                                <tr key={u.id} className={`transition-colors ${esMiCuenta ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}>
+                                <tr key={u.id} className={`transition-colors ${esMiCuenta ? 'bg-blue-50/50' : 'hover:bg-gray-50'} ${!u.isActive ? 'opacity-60 bg-gray-50' : ''}`}>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold uppercase ${esMiCuenta ? 'bg-indigo-600 text-white' : 'bg-blue-100 text-blue-600'}`}>
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold uppercase ${esMiCuenta ? 'bg-indigo-600 text-white' : !u.isActive ? 'bg-gray-300 text-gray-600' : 'bg-blue-100 text-blue-600'}`}>
                                                 {u.nombre.charAt(0)}
                                             </div>
                                             <div>
                                                 <p className="font-bold text-gray-700 capitalize flex items-center gap-2">
-                                                    {u.nombre} {esMiCuenta && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">TÚ</span>}
+                                                    {u.nombre} 
+                                                    {esMiCuenta && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">TÚ</span>}
+                                                    {!u.isActive && <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">BLOQUEADO</span>}
                                                 </p>
                                                 <p className="text-xs text-gray-400">{u.email}</p>
                                             </div>
@@ -196,6 +215,14 @@ const UserManagement = () => {
                                     <td className="px-6 py-4 text-sm text-gray-500">{u.fechaUnion}</td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
+                                            <button 
+                                                onClick={() => !esMiCuenta && handleToggleStatus(u.id, u.isActive)} 
+                                                className={`p-2 transition-colors ${esMiCuenta ? 'text-gray-300 cursor-not-allowed' : u.isActive ? 'text-green-600 hover:text-amber-500' : 'text-amber-500 hover:text-green-600'}`} 
+                                                disabled={esMiCuenta}
+                                                title={u.isActive ? "Bloquear acceso" : "Permitir acceso"}
+                                            >
+                                                {u.isActive ? <Unlock size={18} /> : <Lock size={18} />}
+                                            </button>
                                             <button onClick={() => !esMiCuenta && abrirModalEdicion(u)} className={`p-2 transition-colors ${esMiCuenta ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-blue-600'}`} disabled={esMiCuenta}>
                                                 <Edit2 size={18} />
                                             </button>
@@ -259,7 +286,6 @@ const UserManagement = () => {
                 </div>
             )}
 
-            {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
             {usuarioAEliminar && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all">
@@ -287,7 +313,6 @@ const UserManagement = () => {
                     </div>
                 </div>
             )}
-
 
         </div>
     );

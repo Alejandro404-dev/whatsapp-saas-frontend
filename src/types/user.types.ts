@@ -2,6 +2,8 @@ export interface UserData {
     id: string;
     email: string;
     role: string;
+    tenantId: string;
+    isActive: boolean;
     createdAt: string;
 }
 
@@ -12,4 +14,5 @@ export interface TableUser {
     email: string;
     rolNombre: string;
     fechaUnion: string;
+    isActive: boolean;
 }

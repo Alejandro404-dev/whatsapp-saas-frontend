@@ -1,13 +1,14 @@
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 
-// Este componente envuelve a las rutas que queremos proteger
+// Este componente es un "Guardia de Ruta" que protege las rutas privadas
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-    // Revisamos nuestra memoria global para ver si hay una sesión activa
+    // 1. Selector limpio y eficiente
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const token = useAuthStore((state) => state.token);
 
-    // Si no está autenticado, lo pateamos de vuelta al login
-    if (!isAuthenticated) {
+    // 2. Si falta cualquiera de los dos, fuera.
+    if (!isAuthenticated || !token) {
         return <Navigate to="/login" replace />;
     }
 
