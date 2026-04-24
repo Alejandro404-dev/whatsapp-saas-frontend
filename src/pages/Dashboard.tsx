@@ -18,7 +18,7 @@ const Dashboard = () => {
             {/* ENCABEZADO */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-800">
-                    Hola, {user?.email?.split('@')[0] || 'Usuario'} 👋
+                    Hola, {user?.email?.split('@')[0] || 'Usuario'} 
                 </h1>
                 <p className="text-gray-500 mt-2">
                     Aquí tienes un resumen de la actividad de tu plataforma en los últimos 30 días.

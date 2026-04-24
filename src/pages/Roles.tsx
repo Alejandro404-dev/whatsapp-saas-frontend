@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Shield, Edit2, Trash2, X, Check, Lock } from 'lucide-react';
+import { Plus, Shield, Edit2, Trash2, X, Check, Lock, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,6 @@ import type { Role } from '../types/role.types';
 
 const rolSchema = z.object({
     nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
-    // descripcion: z.string().optional(), // Podrías agregarlo si lo necesitas
 });
 
 type RolValues = z.infer<typeof rolSchema>;
@@ -28,6 +27,9 @@ const Roles = () => {
     const [roles, setRoles] = useState<Role[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [rolEnEdicion, setRolEnEdicion] = useState<string | null>(null);
+    
+    // NUEVO: Estado para el modal de eliminación
+    const [rolAEliminar, setRolAEliminar] = useState<Role | null>(null);
 
     // Estado para los checkboxes
     const [permisosSeleccionados, setPermisosSeleccionados] = useState<string[]>([]);
@@ -86,7 +88,6 @@ const Roles = () => {
                     permisos: permisosSeleccionados
                 });
 
-                // Actualizar estado local
                 setRoles(roles.map(r => r.id === rolEnEdicion ? { ...r, nombre: data.nombre, permisos: permisosSeleccionados } : r));
                 toast.success("Rol actualizado", { id: "formRol" });
             } else {
@@ -96,7 +97,6 @@ const Roles = () => {
                     tenantId: user.tenantId
                 });
 
-                // Aseguramos que el nuevo rol se formatee correctamente para la UI
                 const rolParaTabla: Role = {
                     id: nuevo.id,
                     nombre: nuevo.name, 
@@ -116,7 +116,8 @@ const Roles = () => {
         }
     };
 
-    const handleDelete = async (rol: Role) => {
+    // NUEVO: Función que abre el modal de eliminación
+    const iniciarEliminacion = (rol: Role) => {
         if (rol.protegido) {
             toast.error("No puedes eliminar un rol del sistema.");
             return;
@@ -125,28 +126,33 @@ const Roles = () => {
             toast.error("No puedes eliminar un rol con usuarios asignados.");
             return;
         }
+        setRolAEliminar(rol);
+    };
 
-        if (confirm(`¿Eliminar el rol ${rol.nombre}?`)) {
-            try {
-                toast.loading("Eliminando...", { id: "delRol" });
-                await eliminarRol(rol.id);
-                setRoles(roles.filter(r => r.id !== rol.id));
-                toast.success("Rol eliminado", { id: "delRol" });
-            } catch (error) {
-                console.error("Error al eliminar rol:", error);
-                toast.error("Error al eliminar", { id: "delRol" });
-            }
+    // NUEVO: Función que ejecuta la eliminación en BD
+    const ejecutarEliminacion = async () => {
+        if (!rolAEliminar) return;
+
+        try {
+            toast.loading("Eliminando...", { id: "delRol" });
+            await eliminarRol(rolAEliminar.id);
+            setRoles(roles.filter(r => r.id !== rolAEliminar.id));
+            toast.success("Rol eliminado", { id: "delRol" });
+        } catch (error) {
+            console.error("Error al eliminar rol:", error);
+            toast.error("Error al eliminar", { id: "delRol" });
+        } finally {
+            setRolAEliminar(null);
         }
     };
 
     return (
-        <div className="p-8">
+        <div className="p-8 relative">
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800">Roles y Permisos</h2>
                     <p className="text-gray-500">Configura los niveles de acceso para tu equipo</p>
                 </div>
-                {/* Solo mostramos el botón si es SuperAdmin (o si quieres que los Admins también creen roles, puedes quitar esta condición) */}
                 {esSuperAdmin && (
                     <button
                         onClick={abrirModalNuevo}
@@ -173,7 +179,6 @@ const Roles = () => {
                             </div>
 
                             <div className="flex gap-2">
-                                {/* Lógica de edición: SuperAdmin puede editar todo menos otros SuperAdmins (si hubiera). Un rol protegido no se edita salvo que sea SuperAdmin editando un rol base, pero por simplicidad de la regla: */}
                                 <button
                                     onClick={() => abrirModalEdicion(rol)}
                                     className={`p-2 transition-colors ${rol.protegido && !esSuperAdmin ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-blue-600'}`}
@@ -183,8 +188,9 @@ const Roles = () => {
                                     <Edit2 size={18} />
                                 </button>
 
+                                {/* REEMPLAZADO: Ahora llama a iniciarEliminacion */}
                                 <button
-                                    onClick={() => handleDelete(rol)}
+                                    onClick={() => iniciarEliminacion(rol)}
                                     className={`p-2 transition-colors ${rol.protegido || rol.usuariosActivos > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600'}`}
                                     disabled={rol.protegido || rol.usuariosActivos > 0}
                                     title={rol.protegido ? "Rol protegido" : rol.usuariosActivos > 0 ? "Tiene usuarios" : "Eliminar rol"}
@@ -274,6 +280,38 @@ const Roles = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* NUEVO: MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
+            {rolAEliminar && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4 transition-all">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center animate-in fade-in zoom-in duration-200">
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+                            <AlertTriangle size={32} className="text-red-500" />
+                        </div>
+                        
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">¿Eliminar rol?</h3>
+                        <p className="text-gray-500 text-sm mb-6">
+                            Estás por borrar el rol <span className="font-bold text-gray-700">"{rolAEliminar.nombre}"</span>. 
+                            Esta acción no se puede deshacer.
+                        </p>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setRolAEliminar(null)}
+                                className="flex-1 py-2.5 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50 font-semibold transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={ejecutarEliminacion}
+                                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-md shadow-red-200 transition-colors"
+                            >
+                                Sí, eliminar
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

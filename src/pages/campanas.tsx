@@ -5,13 +5,40 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
+
+// ==========================================
+// ESQUEMA DE VALIDACIÓN ZOD (CORREGIDO)
+// ==========================================
+const hoy = new Date();
+hoy.setHours(0, 0, 0, 0);
 
 const campanaSchema = z.object({
     nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
     mensaje: z.string().min(10, "El mensaje debe tener al menos 10 caracteres"),
+    startDate: z.string().min(1, "La fecha de inicio es requerida"),
+    endDate: z.string().min(1, "La fecha fin es requerida"),
+}).refine((data) => {
+    const start = new Date(data.startDate + "T00:00:00");
+    return start >= hoy;
+}, {
+    message: "La fecha de inicio no puede ser menor a hoy",
+    path: ["startDate"],
+}).refine((data) => {
+    const start = new Date(data.startDate + "T00:00:00");
+    const end = new Date(data.endDate + "T00:00:00");
+    return end >= start;
+}, {
+    message: "La fecha fin no puede ser menor a la de inicio",
+    path: ["endDate"],
 });
 
 type CampanaValues = z.infer<typeof campanaSchema>;
+
+interface ContactoExcel {
+    nombre: string;
+    telefono: string;
+}
 
 const Campanas = () => {
     const location = useLocation();
@@ -21,8 +48,8 @@ const Campanas = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [campanas, setCampanas] = useState([
-        { id: 1, nombre: "Promo Verano 2026", estado: "Completada", enviados: 1250, fecha: "02 Abr 2026" },
-        { id: 2, nombre: "Recordatorio de Pago", estado: "Activa", enviados: 340, fecha: "04 Abr 2026" },
+        { id: 1, nombre: "Promo Verano 2026", estado: "Completada", enviados: 1250, fecha: "02 Abr 2026 - 15 Abr 2026" },
+        { id: 2, nombre: "Recordatorio de Pago", estado: "Activa", enviados: 340, fecha: "04 Abr 2026 - 10 Abr 2026" },
         { id: 3, nombre: "Lanzamiento Producto X", estado: "Borrador", enviados: 0, fecha: "--" },
     ]);
 
@@ -31,35 +58,46 @@ const Campanas = () => {
     // ESTADOS PARA LA MAGIA DEL EXCEL
     const [isUploading, setIsUploading] = useState(false);
     const [hasUploaded, setHasUploaded] = useState(false);
+    // NUEVO ESTADO: Guarda los contactos reales extraídos
+    const [contactosValidos, setContactosValidos] = useState<ContactoExcel[]>([]);
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<CampanaValues>({
         resolver: zodResolver(campanaSchema)
     });
 
     const onSubmit = (data: CampanaValues) => {
-        if (!hasUploaded) {
-            toast.error("Debes subir una base de contactos primero");
+        if (!hasUploaded || contactosValidos.length === 0) {
+            toast.error("Debes subir una base de contactos válida primero");
             return;
         }
+
+        const formatoOpciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
+
+        const inicioDate = new Date(data.startDate + "T00:00:00");
+        const finDate = new Date(data.endDate + "T00:00:00");
+
+        const fechaInicioStr = inicioDate.toLocaleDateString('es-ES', formatoOpciones);
+        const fechaFinStr = finDate.toLocaleDateString('es-ES', formatoOpciones);
 
         const nuevaCampana = {
             id: campanas.length + 1,
             nombre: data.nombre,
             estado: "Activa",
             enviados: 0,
-            fecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+            fecha: `${fechaInicioStr} - ${fechaFinStr}`
         };
 
         setCampanas([nuevaCampana, ...campanas]);
         cerrarModal();
-        toast.success(`¡Campaña "${data.nombre}" encolada para envío!`);
+        toast.success(`¡Campaña "${data.nombre}" encolada para envío a ${contactosValidos.length} contactos!`);
     };
 
     const cerrarModal = () => {
         setIsModalOpen(false);
         reset();
-        setHasUploaded(false); // Reseteamos el excel falso
+        setHasUploaded(false);
         setIsUploading(false);
+        setContactosValidos([]); // Limpiamos la memoria
     };
 
     useEffect(() => {
@@ -68,18 +106,66 @@ const Campanas = () => {
         }
     }, [location, navigate]);
 
-    //  LA FUNCIÓN QUE SIMULA LEER EL EXCEL
+    // ==========================================
+    // LA FUNCIÓN REAL QUE LEE EL EXCEL
+    // ==========================================
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            setIsUploading(true);
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-            // Simulamos que el servidor está procesando el archivo por 2 segundos
-            setTimeout(() => {
-                setIsUploading(false);
+        setIsUploading(true);
+        setHasUploaded(false);
+
+        const reader = new FileReader();
+        
+        reader.onload = (evt) => {
+            try {
+                // 1. Leemos el archivo binario
+                const bstr = evt.target?.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                
+                // 2. Agarramos la primera hoja de cálculo
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                
+                // 3. Convertimos esa hoja a un Array de Objetos genéricos
+                const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+
+                // 4. Mapeamos los datos para estandarizarlos
+                const contactosLimpios: ContactoExcel[] = data.map((fila) => {
+                    const filaMinusculas: Record<string, string> = {};
+                    for (const key in fila) {
+                        // Lo pasamos a string por si Excel lee el teléfono como número
+                        filaMinusculas[key.toLowerCase().trim()] = String(fila[key]);
+                    }
+
+                    return {
+                        nombre: filaMinusculas['nombre'] || filaMinusculas['name'] || filaMinusculas['cliente'] || 'Sin Nombre',
+                        telefono: filaMinusculas['telefono'] || filaMinusculas['celular'] || filaMinusculas['phone'] || 'Sin Número'
+                    };
+                }).filter(c => c.telefono !== 'Sin Número'); // Descartamos filas vacías
+
+                if (contactosLimpios.length === 0) {
+                    toast.error("El archivo no tiene una columna de Teléfono válida.");
+                    setIsUploading(false);
+                    return;
+                }
+
+                setContactosValidos(contactosLimpios);
                 setHasUploaded(true);
-                toast.success("Base de datos procesada correctamente");
-            }, 2000);
-        }
+                toast.success(`¡Se extrajeron ${contactosLimpios.length} contactos!`);
+
+            } catch (error) {
+                console.error(error);
+                toast.error("Hubo un error al leer el archivo Excel.");
+            } finally {
+                setIsUploading(false);
+                // Reseteamos el input invisible para que el "onChange" detecte si se sube el mismo archivo de nuevo
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+        };
+
+        reader.readAsBinaryString(file);
     };
 
     return (
@@ -106,7 +192,7 @@ const Campanas = () => {
                             <th className="px-6 py-4 text-sm font-semibold text-gray-600">Nombre de Campaña</th>
                             <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
                             <th className="px-6 py-4 text-sm font-semibold text-gray-600">Mensajes Enviados</th>
-                            <th className="px-6 py-4 text-sm font-semibold text-gray-600">Fecha</th>
+                            <th className="px-6 py-4 text-sm font-semibold text-gray-600">Duración</th>
                             <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-right">Acciones</th>
                         </tr>
                     </thead>
@@ -148,10 +234,10 @@ const Campanas = () => {
                 </table>
             </div>
 
-            {/* === EL MODAL DE NUEVA CAMPAÑA CON MAGIA === */}
+            {/* === EL MODAL DE NUEVA CAMPAÑA === */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-bold text-gray-800">Configurar Nueva Campaña</h3>
                             <button onClick={cerrarModal} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -170,11 +256,31 @@ const Campanas = () => {
                                 {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre.message}</p>}
                             </div>
 
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
+                                    <input
+                                        type="date"
+                                        {...register("startDate")}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    />
+                                    {errors.startDate && <p className="text-red-500 text-xs mt-1">{errors.startDate.message}</p>}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Fin</label>
+                                    <input
+                                        type="date"
+                                        {...register("endDate")}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    />
+                                    {errors.endDate && <p className="text-red-500 text-xs mt-1">{errors.endDate.message}</p>}
+                                </div>
+                            </div>
+
                             {/* LA ZONA DE EXCEL DINÁMICA */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Base de Contactos</label>
 
-                                {/* Input invisible real */}
                                 <input
                                     type="file"
                                     accept=".csv, .xlsx"
@@ -190,6 +296,7 @@ const Campanas = () => {
                                     >
                                         <Upload size={24} className="mx-auto text-blue-500 mb-2" />
                                         <p className="text-sm text-blue-700 font-medium">Haz clic para subir archivo Excel/CSV</p>
+                                        <p className="text-xs text-blue-400 mt-1">El archivo debe tener las columnas "Nombre" y "Telefono"</p>
                                     </div>
                                 )}
 
@@ -205,25 +312,37 @@ const Campanas = () => {
                                         <div className="flex justify-between items-center mb-3">
                                             <div className="flex items-center gap-2 text-green-700 font-bold text-sm">
                                                 <CheckCircle2 size={18} />
-                                                1,452 Contactos Válidos Encontrados
+                                                {contactosValidos.length} Contactos Válidos
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={() => setHasUploaded(false)}
+                                                onClick={() => { setHasUploaded(false); setContactosValidos([]); }}
                                                 className="text-xs text-green-700 hover:underline"
                                             >
                                                 Cambiar archivo
                                             </button>
                                         </div>
-                                        {/* Mini tabla de vista previa */}
+                                        
                                         <div className="bg-white rounded border border-green-100 p-2 text-xs text-gray-600 font-mono">
                                             <div className="grid grid-cols-2 gap-2 border-b border-gray-100 pb-1 mb-1 font-bold text-gray-700">
                                                 <span>Nombre</span>
                                                 <span>Teléfono</span>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2"><span>Juan Pérez</span><span>+57 300 123 4567</span></div>
-                                            <div className="grid grid-cols-2 gap-2"><span>María Gómez</span><span>+57 312 987 6543</span></div>
-                                            <div className="grid grid-cols-2 gap-2 text-gray-400 italic"><span>... y 1,450 más</span><span></span></div>
+                                            
+                                            {/* Renderizamos solo los primeros 3 para la vista previa */}
+                                            {contactosValidos.slice(0, 3).map((contacto, index) => (
+                                                <div key={index} className="grid grid-cols-2 gap-2">
+                                                    <span className="truncate">{contacto.nombre}</span>
+                                                    <span>{contacto.telefono}</span>
+                                                </div>
+                                            ))}
+                                            
+                                            {contactosValidos.length > 3 && (
+                                                <div className="grid grid-cols-2 gap-2 text-gray-400 italic mt-1 pt-1 border-t border-gray-50">
+                                                    <span>... y {contactosValidos.length - 3} más</span>
+                                                    <span></span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}

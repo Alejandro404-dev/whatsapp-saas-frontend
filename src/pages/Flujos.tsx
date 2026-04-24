@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bot, Plus, Edit2, Trash2, X, MessageCircle, Zap, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Bot, Plus, Edit2, Trash2, X, MessageCircle, Zap, ToggleLeft, ToggleRight, AlertTriangle } from 'lucide-react';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,6 +24,9 @@ const Flujos = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [flujoEnEdicion, setFlujoEnEdicion] = useState<number | null>(null);
+    
+    // NUEVO: Estado para el modal de eliminación elegante
+    const [flujoAEliminar, setFlujoAEliminar] = useState<typeof flujos[0] | null>(null);
 
     const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<FlujoValues>({
         resolver: zodResolver(flujoSchema)
@@ -82,15 +85,17 @@ const Flujos = () => {
         cerrarModal();
     };
 
-    const eliminarFlujo = (id: number) => {
-        if (confirm("¿Estás seguro de eliminar esta automatización?")) {
-            setFlujos(flujos.filter(f => f.id !== id));
-            toast.success("Flujo eliminado");
-        }
+    // NUEVO: Función que ejecuta la eliminación con el modal
+    const ejecutarEliminacion = () => {
+        if (!flujoAEliminar) return;
+        
+        setFlujos(flujos.filter(f => f.id !== flujoAEliminar.id));
+        toast.success("Automatización eliminada", { id: "delFlujo" });
+        setFlujoAEliminar(null); // Cierra el modal
     };
 
     return (
-        <div className="p-8">
+        <div className="p-8 relative">
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800">Automatización (Chatbots)</h2>
@@ -152,7 +157,8 @@ const Flujos = () => {
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex justify-end gap-2 text-gray-400">
                                         <button onClick={() => abrirModalEdicion(flujo)} className="p-2 hover:text-blue-600 transition-colors"><Edit2 size={18} /></button>
-                                        <button onClick={() => eliminarFlujo(flujo.id)} className="p-2 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
+                                        {/* MODIFICADO: Ahora abre nuestro modal en lugar del confirm() */}
+                                        <button onClick={() => setFlujoAEliminar(flujo)} className="p-2 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
                                     </div>
                                 </td>
                             </tr>
@@ -241,6 +247,38 @@ const Flujos = () => {
                             </div>
                         </div>
 
+                    </div>
+                </div>
+            )}
+
+            {/* NUEVO: MODAL DE CONFIRMACIÓN DE ELIMINACIÓN DE FLUJO */}
+            {flujoAEliminar && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4 transition-all">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center animate-in fade-in zoom-in duration-200">
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+                            <AlertTriangle size={32} className="text-red-500" />
+                        </div>
+                        
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">¿Eliminar automatización?</h3>
+                        <p className="text-gray-500 text-sm mb-6">
+                            Estás por borrar el flujo <span className="font-bold text-gray-700">"{flujoAEliminar.nombre}"</span>. 
+                            Esta acción no se puede deshacer.
+                        </p>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setFlujoAEliminar(null)}
+                                className="flex-1 py-2.5 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50 font-semibold transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={ejecutarEliminacion}
+                                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-md shadow-red-200 transition-colors"
+                            >
+                                Sí, eliminar
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
