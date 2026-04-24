@@ -7,8 +7,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
+// IMPORTS NUEVOS PARA EL BACKEND
+import { useAuthStore } from '../features/auth/store/useAuthStore';
+import { crearCampana, obtenerCampanas } from '../api/campaignService';
+
 // ==========================================
-// ESQUEMA DE VALIDACIÓN ZOD (CORREGIDO)
+// ESQUEMA DE VALIDACIÓN ZOD 
 // ==========================================
 const hoy = new Date();
 hoy.setHours(0, 0, 0, 0);
@@ -40,56 +44,124 @@ interface ContactoExcel {
     telefono: string;
 }
 
+// Interfaz para mapear lo que viene de la BD a la tabla visual
+interface CampanaTabla {
+    id: string;
+    nombre: string;
+    estado: string;
+    enviados: number;
+    fecha: string;
+}
+
+interface CampanaBackend {
+    id: string;
+    name: string;
+    status: string;
+    startDate: string | Date;
+    endDate: string | Date;
+}
+
 const Campanas = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { user } = useAuthStore(); // Extraemos el usuario para el tenantId
 
-    // Referencia para el input de archivo oculto
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [campanas, setCampanas] = useState([
-        { id: 1, nombre: "Promo Verano 2026", estado: "Completada", enviados: 1250, fecha: "02 Abr 2026 - 15 Abr 2026" },
-        { id: 2, nombre: "Recordatorio de Pago", estado: "Activa", enviados: 340, fecha: "04 Abr 2026 - 10 Abr 2026" },
-        { id: 3, nombre: "Lanzamiento Producto X", estado: "Borrador", enviados: 0, fecha: "--" },
-    ]);
-
+    // Estado inicial vacío, se llenará con la Base de Datos
+    const [campanas, setCampanas] = useState<CampanaTabla[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(location.state?.abrirModal || false);
 
-    // ESTADOS PARA LA MAGIA DEL EXCEL
+    // ESTADOS PARA EL EXCEL
     const [isUploading, setIsUploading] = useState(false);
     const [hasUploaded, setHasUploaded] = useState(false);
-    // NUEVO ESTADO: Guarda los contactos reales extraídos
     const [contactosValidos, setContactosValidos] = useState<ContactoExcel[]>([]);
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm<CampanaValues>({
         resolver: zodResolver(campanaSchema)
     });
 
-    const onSubmit = (data: CampanaValues) => {
+    // ==========================================
+    // CARGAR DATOS DEL BACKEND AL INICIAR
+    // ==========================================
+    useEffect(() => {
+        if (!user?.tenantId) return;
+
+        const cargarDatos = async () => {
+            try {
+                const data = await obtenerCampanas(user.tenantId);
+                
+                // 1. Usamos la nueva interfaz en lugar de 'any'
+                const formateadas: CampanaTabla[] = data.map((c: CampanaBackend) => {
+                    const inicio = new Date(c.startDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const fin = new Date(c.endDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+                    
+                    return {
+                        id: c.id,
+                        nombre: c.name,
+                        estado: c.status === 'ACTIVA' ? 'Activa' : c.status,
+                        enviados: 0, 
+                        fecha: `${inicio} - ${fin}`
+                    };
+                });
+                
+                setCampanas(formateadas);
+            } catch (error) {
+                // 2. Imprimimos el error para que ESLint sepa que lo estamos usando
+                console.error("Error al obtener datos de la BD:", error);
+                toast.error("Error al cargar las campañas");
+            }
+        };
+
+        cargarDatos();
+    }, [user?.tenantId]);
+
+    // ==========================================
+    // ENVIAR NUEVA CAMPAÑA AL BACKEND
+    // ==========================================
+    const onSubmit = async (data: CampanaValues) => {
         if (!hasUploaded || contactosValidos.length === 0) {
             toast.error("Debes subir una base de contactos válida primero");
             return;
         }
+        if (!user?.tenantId) return;
 
-        const formatoOpciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
+        try {
+            toast.loading("Procesando campaña...", { id: "campana" });
 
-        const inicioDate = new Date(data.startDate + "T00:00:00");
-        const finDate = new Date(data.endDate + "T00:00:00");
+            // 1. Enviamos los datos al backend
+            const respuesta = await crearCampana({
+                name: data.nombre,
+                message: data.mensaje,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                tenantId: user.tenantId,
+                totalContacts: contactosValidos.length
+            });
 
-        const fechaInicioStr = inicioDate.toLocaleDateString('es-ES', formatoOpciones);
-        const fechaFinStr = finDate.toLocaleDateString('es-ES', formatoOpciones);
+            // 2. Formateamos la respuesta para agregarla a la tabla inmediatamente
+            const formatoOpciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
+            const inicioDate = new Date(data.startDate + "T00:00:00");
+            const finDate = new Date(data.endDate + "T00:00:00");
+            const fechaInicioStr = inicioDate.toLocaleDateString('es-ES', formatoOpciones);
+            const fechaFinStr = finDate.toLocaleDateString('es-ES', formatoOpciones);
 
-        const nuevaCampana = {
-            id: campanas.length + 1,
-            nombre: data.nombre,
-            estado: "Activa",
-            enviados: 0,
-            fecha: `${fechaInicioStr} - ${fechaFinStr}`
-        };
+            const nuevaCampanaVisual: CampanaTabla = {
+                id: respuesta.campana.id,
+                nombre: respuesta.campana.name,
+                estado: "Activa",
+                enviados: 0,
+                fecha: `${fechaInicioStr} - ${fechaFinStr}`
+            };
 
-        setCampanas([nuevaCampana, ...campanas]);
-        cerrarModal();
-        toast.success(`¡Campaña "${data.nombre}" encolada para envío a ${contactosValidos.length} contactos!`);
+            setCampanas([nuevaCampanaVisual, ...campanas]);
+            cerrarModal();
+            toast.success(`¡Campaña "${data.nombre}" creada y encolada!`, { id: "campana" });
+
+        } catch (error) {
+            console.error("Error al lanzar campaña:", error);
+            toast.error("No se pudo lanzar la campaña", { id: "campana" });
+        }
     };
 
     const cerrarModal = () => {
@@ -97,7 +169,7 @@ const Campanas = () => {
         reset();
         setHasUploaded(false);
         setIsUploading(false);
-        setContactosValidos([]); // Limpiamos la memoria
+        setContactosValidos([]); 
     };
 
     useEffect(() => {
@@ -107,7 +179,7 @@ const Campanas = () => {
     }, [location, navigate]);
 
     // ==========================================
-    // LA FUNCIÓN REAL QUE LEE EL EXCEL
+    // LECTURA REAL DEL ARCHIVO EXCEL
     // ==========================================
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -120,22 +192,17 @@ const Campanas = () => {
         
         reader.onload = (evt) => {
             try {
-                // 1. Leemos el archivo binario
                 const bstr = evt.target?.result;
                 const wb = XLSX.read(bstr, { type: 'binary' });
                 
-                // 2. Agarramos la primera hoja de cálculo
                 const wsname = wb.SheetNames[0];
                 const ws = wb.Sheets[wsname];
                 
-                // 3. Convertimos esa hoja a un Array de Objetos genéricos
                 const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
 
-                // 4. Mapeamos los datos para estandarizarlos
                 const contactosLimpios: ContactoExcel[] = data.map((fila) => {
                     const filaMinusculas: Record<string, string> = {};
                     for (const key in fila) {
-                        // Lo pasamos a string por si Excel lee el teléfono como número
                         filaMinusculas[key.toLowerCase().trim()] = String(fila[key]);
                     }
 
@@ -143,7 +210,7 @@ const Campanas = () => {
                         nombre: filaMinusculas['nombre'] || filaMinusculas['name'] || filaMinusculas['cliente'] || 'Sin Nombre',
                         telefono: filaMinusculas['telefono'] || filaMinusculas['celular'] || filaMinusculas['phone'] || 'Sin Número'
                     };
-                }).filter(c => c.telefono !== 'Sin Número'); // Descartamos filas vacías
+                }).filter(c => c.telefono !== 'Sin Número'); 
 
                 if (contactosLimpios.length === 0) {
                     toast.error("El archivo no tiene una columna de Teléfono válida.");
@@ -160,7 +227,6 @@ const Campanas = () => {
                 toast.error("Hubo un error al leer el archivo Excel.");
             } finally {
                 setIsUploading(false);
-                // Reseteamos el input invisible para que el "onChange" detecte si se sube el mismo archivo de nuevo
                 if (fileInputRef.current) fileInputRef.current.value = '';
             }
         };
@@ -170,7 +236,6 @@ const Campanas = () => {
 
     return (
         <div className="p-8 relative">
-            {/* ENCABEZADO Y TABLA */}
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800">Campañas Masivas</h2>
@@ -230,11 +295,17 @@ const Campanas = () => {
                                 </td>
                             </tr>
                         ))}
+                        {campanas.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                                    No hay campañas registradas aún. ¡Crea la primera!
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
 
-            {/* === EL MODAL DE NUEVA CAMPAÑA === */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
@@ -277,7 +348,6 @@ const Campanas = () => {
                                 </div>
                             </div>
 
-                            {/* LA ZONA DE EXCEL DINÁMICA */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Base de Contactos</label>
 
@@ -329,7 +399,6 @@ const Campanas = () => {
                                                 <span>Teléfono</span>
                                             </div>
                                             
-                                            {/* Renderizamos solo los primeros 3 para la vista previa */}
                                             {contactosValidos.slice(0, 3).map((contacto, index) => (
                                                 <div key={index} className="grid grid-cols-2 gap-2">
                                                     <span className="truncate">{contacto.nombre}</span>
